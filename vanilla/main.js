@@ -7,6 +7,8 @@ let currentContent = ''; // Track content for LLM context
 let isUserTurn = false; // Track whose turn it is (LLM or user)
 let isTimerActive = false;
 let hasUserStartedTyping = false; // Track if user has started typing in the current turn
+let conversation = []; // Track conversation for logging
+let uiMode = localStorage.getItem('ghostwriter-ui-mode') || 'standard'; // 'standard' or 'tui'
 
 // Genre prompts
 const genrePrompts = {
@@ -28,7 +30,8 @@ const genrePrompts = {
 };
 
 // Simple draggable floating timer
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize floating timer draggability
+function initFloatingTimer() {
   const timer = document.getElementById('floating-timer');
   let offsetX, offsetY, isDragging = false;
 
@@ -49,151 +52,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('mouseup', () => {
     isDragging = false;
-    timer.style.cursor = 'grab';
+    timer.style.cursor = 'move';
   });
+}
 
-  // Timer logic
-  let seconds = 30; // Default timer value
-  let originalSeconds = 30; // Keep track of original time for reset
-  let interval = null;
+// Center editor on load and set initial size
+function centerEditorOnLoad() {
+  const editorContainer = document.getElementById('editor-container');
+  const menuBarHeight = document.querySelector('.top-menu-bar').offsetHeight || 0;
   
-  // Update timer when selection changes
-  const timerSelect = document.getElementById('timer-select');
-  timerSelect.addEventListener('change', () => {
-    seconds = parseInt(timerSelect.value);
-    originalSeconds = seconds;
-    updateTimerDisplay();
-  });
+  // Set initial size to 80% width and 60% height of the window
+  const initialWidth = Math.min(window.innerWidth * 0.8, 1200); // Cap at 1200px
+  const initialHeight = Math.min(window.innerHeight * 0.6, 800); // Cap at 800px
   
-  // Add genre change handler
-  const genreSelect = document.getElementById('genre-select');
-  genreSelect.addEventListener('change', async () => {
-    // Only respond to genre changes if the editor is initialized
-    if (!editor) return;
-    
-    console.log("Genre changed to", genreSelect.value);
-    
-    // Reset state for new genre
-    isUserTurn = false;
-    hasUserStartedTyping = false;
-    updateTurnIndicator(false);
-    window.timerControls.reset();
-    editor.setEditable(false);
-    
-    // Clear editor content
-    editor.commands.setContent('');
-    currentContent = '';
-    
-    // Get the selected genre
-    const selectedGenre = genreSelect.value;
-    const startBtn = document.getElementById('startBtn');
-    
-    // Check if Free Writing mode is selected
-    if (selectedGenre === 'freewriting') {
-      console.log("Free Writing mode selected - user starts first");
-      // In Free Writing mode, user starts first
-      startBtn.textContent = 'YOUR TURN';
-      startBtn.disabled = false;
-      // Set to user's turn immediately
-      startUserTurn();
-    } else {
-      // For all other genres, AI starts with a prompt
-      startBtn.disabled = true;
-      startBtn.textContent = 'AI IS WRITING...';
-      
-      // Get first prompt from LLM for the new genre
-      await getLLMResponse(selectedGenre);
-      
-      // After LLM response, it's user's turn
-      startBtn.textContent = 'YOUR TURN';
-      startBtn.disabled = false;
-    }
-  });
+  editorContainer.style.width = `${initialWidth}px`;
+  editorContainer.style.height = `${initialHeight}px`;
   
-  function updateTimerDisplay() {
-    // If timer is not active, display the full original time
-    const displaySeconds = isTimerActive ? seconds : originalSeconds;
-    
-    const min = String(Math.floor(displaySeconds / 60)).padStart(2, '0');
-    const sec = String(displaySeconds % 60).padStart(2, '0');
-    timer.textContent = `${min}:${sec}`;
-    
-    // Add warning class when 5 seconds remaining
-    if (seconds <= 5 && seconds > 0 && isTimerActive) {
-      timer.classList.add('warning');
-    } else {
-      timer.classList.remove('warning');
-    }
-  }
+  // Center the editor, taking into account the menu bar
+  const left = (window.innerWidth - initialWidth) / 2;
+  const top = ((window.innerHeight - menuBarHeight - initialHeight) / 3) + menuBarHeight; // Account for menu bar
   
-  function startTimer() {
-    if (interval) {
-      // If timer is already running, do nothing
-      console.log("Timer already running, not starting again");
-      return;
-    }
-    
-    console.log("Starting timer with", seconds, "seconds");
-    isTimerActive = true;
-    timer.classList.add('active'); // Visual indicator that timer is running
-    
-    interval = setInterval(() => {
-      if (seconds > 0) {
-        seconds--;
-        updateTimerDisplay();
-      } else {
-        clearInterval(interval);
-        interval = null;
-        isTimerActive = false;
-        timer.classList.remove('active');
-        timer.classList.add('flash');
-        setTimeout(() => timer.classList.remove('flash'), 1000);
-        
-        console.log("Timer expired, ending user turn");
-        // When time's up, end user turn and start LLM turn
-        endUserTurn();
-      }
-    }, 1000);
-  }
-  
-  function resetTimer() {
-    console.log("Resetting timer to", originalSeconds, "seconds");
-    if (interval) {
-      clearInterval(interval);
-      interval = null;
-    }
-    seconds = originalSeconds;
-    isTimerActive = false;
-    hasUserStartedTyping = false; // Reset typing state on timer reset
-    timer.classList.remove('active');
-    timer.classList.remove('warning');
-    timer.classList.remove('flash');
-    updateTimerDisplay();
-  }
-  
-  // Make functions available globally within this module
-  window.timerControls = {
-    start: startTimer,
-    reset: resetTimer,
-    isActive: () => isTimerActive
-  };
-  
-  updateTimerDisplay();
-  
-  // Remove the dblclick event - we don't want manual timer starts
-  // timer.addEventListener('dblclick', startTimer);
-
-  // Initialize Tiptap editor
-  initializeEditor();
-
-  // Button click handler
-  document.getElementById('startBtn').addEventListener('click', async () => {
-    await handleStartButtonClick();
-  });
-  
-  // Update turn indicator
-  updateTurnIndicator(false); // Start with AI's turn
-});
+  editorContainer.style.left = `${left}px`;
+  editorContainer.style.top = `${top}px`;
+}
 
 // Update the turn indicator text and style
 function updateTurnIndicator(isUser) {
@@ -396,6 +277,11 @@ async function getLLMResponse(genre, existingContent = '') {
     // For first prompt, use the genre template
     userPrompt = genrePrompts[genre];
   }
+  
+  // Add user input to conversation history
+  if (existingContent) {
+    addToConversation('user', stripHtml(existingContent));
+  }
 
   const responseDiv = document.getElementById('response');
   responseDiv.textContent = 'Loading...';
@@ -418,6 +304,12 @@ async function getLLMResponse(genre, existingContent = '') {
 
     const data = await res.json();
     responseDiv.textContent = ''; // Clear loading message
+    
+    // Add AI response to conversation history
+    addToConversation('assistant', data.text);
+    
+    // Log conversation to server after AI responds
+    logConversation();
 
     // Use emanateStringToEditor to display response
     await emanateStringToEditor(data.text, 30, () => {
@@ -720,15 +612,129 @@ function makeEditorDraggable() {
   }
 }
 
-// Call this function at the end of your DOMContentLoaded event
-document.addEventListener('DOMContentLoaded', () => {
-  // ... existing code ...
+// Initialize style switcher
+function initStyleSwitcher() {
+  const styleSwitcher = document.getElementById('style-switcher');
+  const styleSheet = document.getElementById('style-sheet');
   
+  // Apply the saved UI mode
+  if (uiMode === 'tui') {
+    styleSheet.href = 'tui.css';
+    styleSwitcher.textContent = 'Standard Mode';
+    document.body.classList.add('tui-mode');
+    // Apply green filter to emoji in TUI mode
+    document.querySelectorAll('.drag-icon').forEach(el => {
+      el.classList.add('green-emoji');
+    });
+  } else {
+    styleSheet.href = 'style.css';
+    styleSwitcher.textContent = 'TUI Mode';
+    document.body.classList.remove('tui-mode');
+  }
+  
+  // Style switcher click handler
+  styleSwitcher.addEventListener('click', () => {
+    if (styleSheet.href.includes('tui.css')) {
+      // Switch to standard mode
+      styleSheet.href = 'style.css';
+      styleSwitcher.textContent = 'TUI Mode';
+      document.body.classList.remove('tui-mode');
+      uiMode = 'standard';
+      // Remove green filter from emoji
+      document.querySelectorAll('.drag-icon').forEach(el => {
+        el.classList.remove('green-emoji');
+      });
+    } else {
+      // Switch to TUI mode
+      styleSheet.href = 'tui.css';
+      styleSwitcher.textContent = 'Standard Mode';
+      document.body.classList.add('tui-mode');
+      uiMode = 'tui';
+      // Apply green filter to emoji in TUI mode
+      document.querySelectorAll('.drag-icon').forEach(el => {
+        el.classList.add('green-emoji');
+      });
+    }
+    
+    // Save preference to localStorage
+    localStorage.setItem('ghostwriter-ui-mode', uiMode);
+  });
+}
+
+// Logging functions
+async function logConversation() {
+  try {
+    // Get current settings
+    const genreSelect = document.getElementById('genre-select');
+    const timerSelect = document.getElementById('timer-select');
+    const aiLengthSelect = document.getElementById('ai-length-select');
+    
+    const settings = {
+      genre: genreSelect.value,
+      timer: timerSelect.value,
+      aiLength: aiLengthSelect.value,
+      uiMode: uiMode
+    };
+    
+    // Get metadata
+    const metadata = {
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      sessionId: getOrCreateSessionId()
+    };
+    
+    // Send log to server
+    const response = await fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversation,
+        settings,
+        metadata
+      })
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to log conversation:', await response.text());
+    }
+  } catch (error) {
+    console.error('Error logging conversation:', error);
+  }
+}
+
+// Generate or retrieve session ID
+function getOrCreateSessionId() {
+  let sessionId = sessionStorage.getItem('ghostwriter-session-id');
+  if (!sessionId) {
+    sessionId = 'session-' + Date.now() + '-' + Math.random().toString(36).substring(2);
+    sessionStorage.setItem('ghostwriter-session-id', sessionId);
+  }
+  return sessionId;
+}
+
+// Track conversation for logging
+function addToConversation(role, content) {
+  conversation.push({ role, content, timestamp: new Date().toISOString() });
+}
+
+// The main initialization function should be called after DOM is loaded
+function initializeApp() {
   // Initialize editor draggability
   makeEditorDraggable();
   
-  // ... existing code ...
-  
   // Initialize button state handlers
   setupButtonStateHandlers();
-});
+  
+  // Initialize style switcher
+  initStyleSwitcher();
+  
+  // Initialize floating timer
+  initFloatingTimer();
+  
+  // Set initial editor size and position
+  centerEditorOnLoad();
+}
+
+// Wait for DOM to be fully loaded before initializing
+document.addEventListener('DOMContentLoaded', initializeApp);

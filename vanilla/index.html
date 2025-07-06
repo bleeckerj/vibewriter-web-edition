@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <!-- Local stylesheet -->
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css" id="style-sheet" />
   <!-- Import Tiptap dependencies -->
   <script type="importmap">
   {
@@ -21,7 +21,19 @@
   </script>
 </head>
 <body>
-  <h1>Vibe Mode Writing Tool</h1>
+  <!-- Top menu bar -->
+  <div class="top-menu-bar">
+    <div class="menu-container">
+      <div class="menu-left">
+        <span>Vibewriter (A Ghostwriter Fork)</span>
+      </div>
+      <div class="menu-right">
+        <a href="/privacy.html">Privacy Policy</a>
+      </div>
+    </div>
+  </div>
+  
+  <!-- <h1>Vibe Mode Writing Tool</h1> -->
   
   <div id="editor-container">
     <div class="editor-drag-handle">
@@ -59,6 +71,7 @@
           </select>
         </div>
         <button id="startBtn">START</button>
+        <button id="style-switcher" class="editor-button">TUI Mode</button>
       </div>
     </div>
     <div id="turn-indicator" class="turn-indicator">AI's Turn</div>

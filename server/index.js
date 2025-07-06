@@ -3,9 +3,41 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { OpenAI } = require('openai');
+const fs = require('fs');
+const rfs = require('rotating-file-stream');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// Create logs directory if it doesn't exist
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir);
+}
+
+// Create rotating write stream for logs
+const accessLogStream = rfs.createStream('ghostwriter-access.log', {
+  interval: '1d',        // Rotate daily
+  size: '10M',           // Rotate after 10 MegaBytes
+  path: logsDir,
+  compress: 'gzip'       // Compress rotated files
+});
+
+// Custom logger for conversations
+const logConversation = (req, data) => {
+  const timestamp = new Date().toISOString();
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const logEntry = {
+    timestamp,
+    ip,
+    metadata: data.metadata || {},
+    conversation: data.conversation || [],
+    settings: data.settings || {}
+  };
+  
+  accessLogStream.write(JSON.stringify(logEntry) + '\n');
+  console.log(`Logged conversation at ${timestamp} from IP: ${ip}`);
+};
 
 // Check if OpenAI API key is set
 if (!process.env.OPENAI_API_KEY) {
@@ -92,6 +124,13 @@ app.post('/api/llm', async (req, res) => {
     
     console.log('Response received from OpenAI API');
     res.json({ text: response.choices[0].message.content });
+    
+    // Log the conversation
+    logConversation(req, {
+      metadata: { system, aiLength },
+      conversation: [{ role: 'user', content: prompt }, { role: 'assistant', content: response.choices[0].message.content }],
+      settings: { maxTokens, temperature: isInitial ? 0.9 : 0.8 }
+    });
   } catch (err) {
     console.error('OpenAI API Error:', err.message);
     
@@ -123,6 +162,66 @@ app.get('/api/health', (req, res) => {
     openaiKey: process.env.OPENAI_API_KEY ? 'configured' : 'missing',
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4.1-nano-2025-04-14 (default)'
   });
+});
+
+// API endpoint to log conversations
+app.post('/api/log', (req, res) => {
+  try {
+    const { conversation, metadata, settings } = req.body;
+    
+    if (!conversation) {
+      return res.status(400).json({ error: 'Missing conversation data' });
+    }
+    
+    logConversation(req, { conversation, metadata, settings });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Logging error:', err.message);
+    res.status(500).json({ error: 'Failed to log conversation' });
+  }
+});
+
+// Admin endpoint to view logs (requires authentication)
+app.get('/api/admin/logs', (req, res) => {
+  // Simple basic auth for demo purposes - in production use proper authentication
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic');
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  // Base64 decode credentials
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+  const [username, password] = credentials.split(':');
+  
+  // Check credentials (in production, use environment variables or a secure method)
+  if (username !== 'admin' || password !== 'ghostwriter123') {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  
+  try {
+    // Read the log file
+    fs.readFile(path.join(logsDir, 'ghostwriter-access.log'), 'utf8', (err, data) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to read logs' });
+      }
+      
+      // Parse logs (each line is a JSON object)
+      const logs = data.trim().split('\n').map(line => {
+        try {
+          return JSON.parse(line);
+        } catch (e) {
+          return { error: 'Invalid log entry', raw: line };
+        }
+      });
+      
+      res.json({ logs });
+    });
+  } catch (err) {
+    console.error('Error retrieving logs:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve logs' });
+  }
 });
 
 // Fallback route for SPA
