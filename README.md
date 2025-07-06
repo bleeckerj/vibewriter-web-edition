@@ -102,7 +102,7 @@ The backend uses:
 
 ## License
 
-MIT
+NONE
 
 ## Acknowledgments
 
