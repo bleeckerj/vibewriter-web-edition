@@ -48,7 +48,7 @@ const openai = new OpenAI({
 
 // LLM API endpoint
 app.post('/api/llm', async (req, res) => {
-  const { system, prompt } = req.body;
+  const { system, prompt, aiLength = 'medium' } = req.body;
   
   if (!system || !prompt) {
     return res.status(400).json({ 
@@ -59,9 +59,26 @@ app.post('/api/llm', async (req, res) => {
   try {
     console.log('Sending request to OpenAI API...');
     console.log('Prompt length:', prompt.length, 'characters');
+    console.log('AI length setting:', aiLength);
     
     // Use different max_tokens based on whether this is initial or continuation
     const isInitial = !prompt.includes('Continue this story');
+    
+    // Determine token limits based on AI length setting
+    let maxTokens;
+    switch (aiLength) {
+      case 'short':
+        maxTokens = isInitial ? 30 : 40; // About one sentence
+        break;
+      case 'long':
+        maxTokens = isInitial ? 200 : 250; // ~150 words
+        break;
+      case 'medium':
+      default:
+        maxTokens = isInitial ? 120 : 150; // ~80 words
+    }
+    
+    console.log(`Using max_tokens: ${maxTokens}`);
     
     const response = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4.1-nano-2025-04-14',
@@ -69,7 +86,7 @@ app.post('/api/llm', async (req, res) => {
         { role: 'system', content: system },
         { role: 'user', content: prompt }
       ],
-      max_tokens: isInitial ? 120 : 150, // Allow longer continuations
+      max_tokens: maxTokens,
       temperature: isInitial ? 0.9 : 0.8, // Slightly less random for continuations
     });
     

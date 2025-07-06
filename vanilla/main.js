@@ -366,7 +366,27 @@ async function getLLMResponse(genre, existingContent = '') {
   isUserTurn = false;
   hasUserStartedTyping = false;
   
-  const systemPrompt = `You are a creative writer participating in a back-and-forth writing game. ${existingContent ? 'The user has written some text, and you must now continue the story.' : 'You will provide an inspiring prose-based opening to a creative writing story.'} Write in the specified genre style. Your contribution should be about 60-80 words. Only provide the text that continues or starts the story. Do not provide commentary, questions, or indicate that you are an AI. Do not use quotation marks around your text unless they are part of the story dialogue. Write compelling, vivid text that builds on what came before.`;
+  // Get the selected AI length
+  const aiLengthSelect = document.getElementById('ai-length-select');
+  const aiLength = aiLengthSelect.value;
+  
+  // Determine word count based on selected length
+  let wordCount;
+  switch (aiLength) {
+    case 'short':
+      wordCount = 'one sentence';
+      break;
+    case 'long':
+      wordCount = '~150';
+      break;
+    case 'medium':
+    default:
+      wordCount = '~80';
+  }
+  
+  console.log(`Using AI length: ${aiLength} (${wordCount} words)`);
+  
+  const systemPrompt = `You are a creative writer participating in a back-and-forth writing game. ${existingContent ? 'The user has written some text, and you must now continue the story.' : 'You will provide an inspiring prose-based opening to a creative writing story.'} Write in the specified genre style. Your contribution should be about ${wordCount} words. Only provide the text that continues or starts the story. Do not provide commentary, questions, or indicate that you are an AI. Do not use quotation marks around your text unless they are part of the story dialogue. Write compelling, vivid text that builds on what came before.`;
   
   let userPrompt;
   if (existingContent) {
@@ -385,7 +405,11 @@ async function getLLMResponse(genre, existingContent = '') {
     const res = await fetch('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system: systemPrompt, prompt: userPrompt })
+      body: JSON.stringify({ 
+        system: systemPrompt, 
+        prompt: userPrompt, 
+        aiLength: aiLength 
+      })
     });
 
     if (!res.ok) {
@@ -470,4 +494,36 @@ function emanateCharacterToEditor(character) {
     
   // Restore the original turn state
   isUserTurn = wasUserTurn;
+}
+
+// Add button state handlers
+function setupButtonStateHandlers() {
+  const startBtn = document.getElementById('startBtn');
+  
+  // Add the button-out class by default
+  startBtn.classList.add('button-out');
+  
+  // Handle mousedown - switch to button-in state
+  startBtn.addEventListener('mousedown', function() {
+    if (!this.disabled) {
+      this.classList.remove('button-out');
+      this.classList.add('button-in');
+    }
+  });
+  
+  // Handle mouseup - switch back to button-out state
+  startBtn.addEventListener('mouseup', function() {
+    if (!this.disabled) {
+      this.classList.remove('button-in');
+      this.classList.add('button-out');
+    }
+  });
+  
+  // Handle mouseleave - ensure button returns to out state
+  startBtn.addEventListener('mouseleave', function() {
+    this.classList.remove('button-in');
+    this.classList.add('button-out');
+  });
+  
+  // Add similar functionality to any other buttons that need it
 }

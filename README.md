@@ -11,6 +11,8 @@ A web-based creative writing platform inspired by Ghostwriter's "Vibe Mode." Col
 - Automatic turn-switching when time expires
 - AI-powered text continuation with OpenAI integration
 - Selectable genre/vibe modes (Hardboiled Detective, Fantasy, Sci-Fi, and more)
+- Adjustable AI response length (short, medium, long)
+- Free Writing mode where the user starts first
 - Modern, responsive web UI with Tiptap rich text editor
 - Draggable floating timer
 - Typewriter/emanation effect for AI responses
@@ -53,9 +55,9 @@ A web-based creative writing platform inspired by Ghostwriter's "Vibe Mode." Col
 
 ### The Writing Cycle
 
-1. Select a genre/vibe and timer duration from the dropdown menus
+1. Select a genre/vibe, timer duration, and AI response length from the dropdown menus
 2. Click the START button to begin the cycle
-3. The AI generates an opening paragraph based on the selected genre
+3. The AI generates an opening paragraph based on the selected genre and length
 4. When the AI finishes writing (indicated by "Your Turn - Start Typing to Begin Timer"), you can start typing
 5. The timer displays the full selected time until you begin typing
 6. The timer only starts counting down when you begin typing, not before
@@ -71,6 +73,10 @@ A web-based creative writing platform inspired by Ghostwriter's "Vibe Mode." Col
 - Double-click the timer to restart it manually if needed
 - The timer is draggable if you want to reposition it on the screen
 - Choose a longer timer duration for more complex writing
+- Adjust the AI length to control how much text the AI generates:
+  - Short: one sentence (brief responses)
+  - Medium: ~80 words (standard responses)
+  - Long: ~150 words (detailed responses)
 
 ## Development
 
