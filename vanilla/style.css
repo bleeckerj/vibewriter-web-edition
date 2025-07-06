@@ -1,12 +1,49 @@
+/* Font declarations */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/JetBrainsMono-Regular.woff2') format('woff2'),
+       url('./fonts/JetBrainsMono-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/JetBrainsMono-Bold.woff2') format('woff2'),
+       url('./fonts/JetBrainsMono-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/JetBrainsMono-Italic.woff2') format('woff2'),
+       url('./fonts/JetBrainsMono-Italic.woff') format('woff');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Font variables */
+:root {
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* Base styles */
 body {
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-mono);
   background: #f8fafc;
   margin: 0;
   padding: 2rem;
 }
+
 h1 {
+  font-family: var(--font-mono);
   text-align: center;
   margin-bottom: 1.5rem;
+  letter-spacing: -0.5px;
 }
 
 #controls-container {
@@ -30,6 +67,7 @@ h1 {
 .genre-selector label,
 .timer-selector label,
 .ai-length-selector label {
+  font-family: var(--font-mono);
   font-weight: 600;
   color: #333;
   white-space: nowrap;
@@ -38,8 +76,9 @@ h1 {
 .genre-selector select,
 .timer-selector select,
 .ai-length-selector select {
+  font-family: var(--font-mono);
   padding: 8px 12px;
-  border-radius: 5px;
+  border-radius: 0; /* More terminal-like */
   border: 1px solid #ddd;
   background-color: white;
   font-size: 1rem;
@@ -64,10 +103,11 @@ h1 {
 #editor-container {
   max-width: 700px;
   margin: 0 auto 2rem auto;
-  background: rgba(0,0,0,0.05);
-  border-radius: 2px;
-  box-shadow: inset -1px 2px 3px rgba(0,0,0,0.48);
-  padding: 0.2rem;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 0;
   position: relative;
 }
 
@@ -75,6 +115,7 @@ h1 {
   min-height: 300px;
   max-height: 500px; /* Set a maximum height to ensure scrollbar appears */
   outline: none;
+  font-family: var(--font-mono);
   font-size: 1.1rem;
   line-height: 1.6;
   overflow-y: auto; /* Add vertical scrollbar when content exceeds height */
@@ -92,6 +133,7 @@ h1 {
   outline: none;
   padding: 0.5rem;
   overflow-y: auto; /* Ensure scrollbar works within ProseMirror too */
+  font-family: var(--font-mono) !important;
 }
 
 .ProseMirror p {
@@ -108,18 +150,19 @@ h1 {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  background: rgba(0,0,0,0.5); /* Lighter when inactive */
+  background: rgba(0,0,0,0.8);
+  border: 1px solid #555;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  border-radius: 0;
+  letter-spacing: 0.1em;
   color: #fff;
   padding: 12px 24px;
-  border-radius: 8px;
-  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-family: var(--font-mono);
   font-size: 1.5rem;
-  box-shadow: 2px 2px 4px 0 rgba(0,0,0,0.37);
   z-index: 9999;
   cursor: grab;
   user-select: none;
   transition: box-shadow 0.3s, background-color 0.3s, border 0.3s, transform 0.2s;
-  border: 2px solid rgba(255,255,255,0.2);
 }
 .floating-timer:active {
   cursor: grabbing;
@@ -145,10 +188,10 @@ h1 {
   background-color: #3b82f6;
   color: white;
   border: 1px solid #1e40af;
-  border-radius: 3px;
+  border-radius: 0; /* More terminal-like */
   cursor: pointer;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-mono);
   position: relative;
   transition: transform 10ms ease-in-out, box-shadow 10ms ease-in-out, background-color 10ms ease-in-out, border-color 10ms ease-in-out;
 }
@@ -186,32 +229,192 @@ h1 {
   color: white;
   padding: 6px 16px;
   border-radius: 4px;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
   font-weight: 600;
-  z-index: 10;
+  z-index: 20;
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  transition: background-color 0.3s, transform 0.3s;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.05em;
 }
 
-/* Responsive adjustments */
+/* Editor draggable styles for conventional UI */
+.editor-drag-handle {
+  background: #222;
+  border-bottom: 1px solid #444;
+  padding: 8px 12px;
+  cursor: move;
+  user-select: none;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: center;
+  color: #ddd;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.drag-icon {
+  margin-right: 8px;
+  color: #888;
+}
+
+/* Editor controls container */
+.editor-controls {
+  display: flex;
+  margin-left: auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Control group - label and select together */
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Labels in the control panel */
+.editor-controls label {
+  color: #bbb;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* Select elements in the control panel */
+.editor-controls select {
+  padding: 4px 8px;
+  border: 1px solid #555;
+  border-radius: 0;
+  background-color: #333;
+  color: #eee;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+  background-repeat: no-repeat;
+  background-position-x: calc(100% - 5px);
+  background-position-y: center;
+  background-size: 16px;
+  padding-right: 25px;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.editor-controls select:hover {
+  background-color: #444;
+  border-color: #666;
+}
+
+.editor-controls select:focus {
+  border-color: #888;
+  background-color: #444;
+}
+
+/* START button in the control panel */
+.editor-controls #startBtn {
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  background-color: #555;
+  color: #eee;
+  border: 1px solid #777;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  position: relative;
+  letter-spacing: 0.1em;
+  transition: all 0.1s;
+  box-shadow: inset 0 1px 0 #777, 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.editor-controls #startBtn:hover:not([disabled]) {
+  background-color: #666;
+}
+
+.editor-controls #startBtn:active:not([disabled]) {
+  background-color: #444;
+  box-shadow: inset 0 2px 3px rgba(0,0,0,0.2);
+  transform: translateY(1px);
+}
+
+.editor-controls #startBtn:disabled {
+  background-color: #444;
+  cursor: not-allowed;
+  opacity: 0.5;
+  color: #999;
+}
+
+/* Adjust the editor container style */
+#editor-container {
+  max-width: 700px;
+  margin: 0 auto 2rem auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 0;
+  position: relative;
+}
+
+/* Update the turn indicator positioning */
+.turn-indicator {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3b82f6;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  letter-spacing: 0.05em;
+}
+
+/* Make the floating timer match the austere style */
+.floating-timer {
+  font-family: var(--font-mono);
+  background: rgba(0,0,0,0.8);
+  border: 1px solid #555;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  border-radius: 0;
+  letter-spacing: 0.1em;
+}
+
+/* Media query for responsive controls */
 @media (max-width: 768px) {
-  #controls-container {
+  .editor-drag-handle {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
+    padding: 10px;
   }
   
-  .genre-selector,
-  .timer-selector,
-  .ai-length-selector {
+  .editor-controls {
+    margin-left: 0;
+    margin-top: 10px;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  
+  .control-group {
     width: 100%;
     justify-content: space-between;
   }
   
-  #startBtn {
+  .editor-controls #startBtn {
     width: 100%;
-    margin-top: 1rem;
+    margin-top: 10px;
   }
 }
 
@@ -227,7 +430,7 @@ h1 {
 
 /* Skeuomorphic button styles */
 .skeuomorphic-button {
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-mono);
   position: relative;
   padding: 10px 20px;
   font-size: 1rem;

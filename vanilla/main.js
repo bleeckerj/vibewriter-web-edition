@@ -527,3 +527,93 @@ function setupButtonStateHandlers() {
   
   // Add similar functionality to any other buttons that need it
 }
+
+// Add this function to make the editor draggable with conventional styling
+function makeEditorDraggable() {
+  const editorContainer = document.getElementById('editor-container');
+  let dragHandle = document.querySelector('.editor-drag-handle');
+  
+  // Only create the drag handle if it doesn't already exist
+  if (!dragHandle) {
+    // Create a drag handle for the editor
+    dragHandle = document.createElement('div');
+    dragHandle.className = 'editor-drag-handle';
+    dragHandle.innerHTML = '<span class="drag-icon">☰</span> Editor';
+    
+    // Insert the drag handle at the beginning of the editor container
+    editorContainer.insertBefore(dragHandle, editorContainer.firstChild);
+  }
+  
+  // Rest of the drag functionality...
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+  let originalWidth = null;
+  
+  // Only attach event listener if it hasn't been attached already
+  if (!dragHandle.hasAttribute('data-draggable')) {
+    dragHandle.setAttribute('data-draggable', 'true');
+    
+    dragHandle.addEventListener('mousedown', function(e) {
+      // Only start dragging if the click is on the drag handle itself
+      // and not on any of its child controls
+      if (e.target === dragHandle || e.target.classList.contains('drag-icon')) {
+        dragMouseDown(e);
+      }
+    });
+  }
+  
+  function dragMouseDown(e) {
+    e.preventDefault();
+    // Get the mouse cursor position at startup
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    
+    // Store the original width before positioning changes
+    if (!originalWidth) {
+      originalWidth = editorContainer.offsetWidth;
+    }
+    
+    editorContainer.classList.add('dragging');
+    
+    document.addEventListener('mouseup', closeDragElement);
+    document.addEventListener('mousemove', elementDrag);
+  }
+  
+  function elementDrag(e) {
+    e.preventDefault();
+    // Calculate the new cursor position
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    
+    // Set the element's new position
+    const newTop = (editorContainer.offsetTop - pos2);
+    const newLeft = (editorContainer.offsetLeft - pos1);
+    
+    // Apply position using direct style properties
+    editorContainer.style.position = 'absolute';
+    editorContainer.style.top = newTop + 'px';
+    editorContainer.style.left = newLeft + 'px';
+    editorContainer.style.margin = '0';
+    editorContainer.style.width = originalWidth + 'px'; // Set fixed width to maintain size
+  }
+  
+  function closeDragElement() {
+    document.removeEventListener('mouseup', closeDragElement);
+    document.removeEventListener('mousemove', elementDrag);
+    editorContainer.classList.remove('dragging');
+  }
+}
+
+// Call this function at the end of your DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', () => {
+  // ... existing code ...
+  
+  // Initialize editor draggability
+  makeEditorDraggable();
+  
+  // ... existing code ...
+  
+  // Initialize button state handlers
+  setupButtonStateHandlers();
+});

@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vibe Mode Writing Tool (Vanilla JS)</title>
+  <!-- Google Fonts fallback (will be used until local fonts load) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <!-- Local stylesheet -->
   <link rel="stylesheet" href="style.css" />
   <!-- Import Tiptap dependencies -->
   <script type="importmap">
@@ -18,45 +23,44 @@
 <body>
   <h1>Vibe Mode Writing Tool</h1>
   
-  <div id="controls-container">
-    <div class="genre-selector">
-      <label for="genre-select">Select Vibe/Genre:</label>
-      <select id="genre-select">
-        <option value="freewriting">Free Writing</option>
-        <option value="hardboiled">Hardboiled Detective</option>
-        <option value="fantasy">High Fantasy</option>
-        <option value="scifi">Science Fiction</option>
-        <option value="horror">Horror</option>
-        <option value="romance">Romance</option>
-        <option value="western">Western</option>
-        <option value="poetry">Poetry</option>
-        <option value="solarpunk">Solarpunk</option>
-      </select>
-    </div>
-    
-    <div class="timer-selector">
-      <label for="timer-select">Timer:</label>
-      <select id="timer-select">
-        <option value="30">30 seconds</option>
-        <option value="60">1 minute</option>
-        <option value="180">3 minutes</option>
-        <option value="300">5 minutes</option>
-      </select>
-    </div>
-    
-    <div class="ai-length-selector">
-      <label for="ai-length-select">AI Length:</label>
-      <select id="ai-length-select">
-        <option value="short">Short (one sentence)</option>
-        <option value="medium" selected>Medium (~80 words)</option>
-        <option value="long">Long (~150 words)</option>
-      </select>
-    </div>
-    
-    <button id="startBtn">START</button>
-  </div>
-  
   <div id="editor-container">
+    <div class="editor-drag-handle">
+      <span class="drag-icon">☰</span> Editor
+      <div class="editor-controls">
+        <div class="control-group">
+          <label for="genre-select">Vibe/Genre:</label>
+          <select id="genre-select">
+            <option value="freewriting">Free Writing</option>
+            <option value="hardboiled">Hardboiled Detective</option>
+            <option value="fantasy">High Fantasy</option>
+            <option value="scifi">Science Fiction</option>
+            <option value="horror">Horror</option>
+            <option value="romance">Romance</option>
+            <option value="western">Western</option>
+            <option value="poetry">Poetry</option>
+            <option value="solarpunk">Solarpunk</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="timer-select">Timer:</label>
+          <select id="timer-select">
+            <option value="30">30 sec</option>
+            <option value="60">1 min</option>
+            <option value="180">3 min</option>
+            <option value="300">5 min</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="ai-length-select">AI Length:</label>
+          <select id="ai-length-select">
+            <option value="short">Short (one sentence)</option>
+            <option value="medium" selected>Medium (~80 words)</option>
+            <option value="long">Long (~150 words)</option>
+          </select>
+        </div>
+        <button id="startBtn">START</button>
+      </div>
+    </div>
     <div id="turn-indicator" class="turn-indicator">AI's Turn</div>
     <div id="editor" spellcheck="true"></div>
   </div>
