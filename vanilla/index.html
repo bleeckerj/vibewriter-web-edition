@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vibe Mode Writing Tool (Vanilla JS)</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Import Tiptap dependencies -->
+  <script type="importmap">
+  {
+    "imports": {
+      "@tiptap/core": "https://esm.sh/@tiptap/core@2.1.12",
+      "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.1.12"
+    }
+  }
+  </script>
+</head>
+<body>
+  <h1>Vibe Mode Writing Tool</h1>
+  
+  <div id="controls-container">
+    <div class="genre-selector">
+      <label for="genre-select">Select Vibe/Genre:</label>
+      <select id="genre-select">
+        <option value="freewriting">Free Writing</option>
+        <option value="hardboiled">Hardboiled Detective</option>
+        <option value="fantasy">High Fantasy</option>
+        <option value="scifi">Science Fiction</option>
+        <option value="horror">Horror</option>
+        <option value="romance">Romance</option>
+        <option value="western">Western</option>
+        <option value="poetry">Poetry</option>
+        <option value="solarpunk">Solarpunk</option>
+      </select>
+    </div>
+    
+    <div class="timer-selector">
+      <label for="timer-select">Timer:</label>
+      <select id="timer-select">
+        <option value="30">30 seconds</option>
+        <option value="60">1 minute</option>
+        <option value="180">3 minutes</option>
+        <option value="300">5 minutes</option>
+      </select>
+    </div>
+    
+    <button id="startBtn">START</button>
+  </div>
+  
+  <div id="editor-container">
+    <div id="turn-indicator" class="turn-indicator">AI's Turn</div>
+    <div id="editor" spellcheck="true"></div>
+  </div>
+  
+  <div id="floating-timer" class="floating-timer">00:30</div>
+  <div id="response"></div>
+  
+  <script type="module" src="main.js"></script>
+</body>
+</html>
