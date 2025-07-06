@@ -544,6 +544,22 @@ function makeEditorDraggable() {
     editorContainer.insertBefore(dragHandle, editorContainer.firstChild);
   }
   
+  // Add resize handles if they don't exist
+  if (!document.querySelector('.resize-handle-e')) {
+    const resizeHandles = [
+      { class: 'resize-handle-e', cursor: 'ew-resize' },   // East (right)
+      { class: 'resize-handle-s', cursor: 'ns-resize' },   // South (bottom)
+      { class: 'resize-handle-se', cursor: 'nwse-resize' } // Southeast (corner)
+    ];
+    
+    resizeHandles.forEach(handle => {
+      const resizeHandle = document.createElement('div');
+      resizeHandle.className = `resize-handle ${handle.class}`;
+      resizeHandle.style.cursor = handle.cursor;
+      editorContainer.appendChild(resizeHandle);
+    });
+  }
+  
   // Rest of the drag functionality...
   let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
   let originalWidth = null;
@@ -560,6 +576,105 @@ function makeEditorDraggable() {
       }
     });
   }
+  
+  // Add resizing functionality
+  const MIN_WIDTH = 400;  // Minimum width in pixels
+  const MIN_HEIGHT = 300; // Minimum height in pixels
+  
+  let resizeEFunction, resizeSFunction, resizeSEFunction;
+  
+  // East (right) resize handle
+  const handleE = document.querySelector('.resize-handle-e');
+  if (handleE && !handleE.hasAttribute('data-resizable')) {
+    handleE.setAttribute('data-resizable', 'true');
+    
+    resizeEFunction = function(e) {
+      const newWidth = Math.max(MIN_WIDTH, e.clientX - editorContainer.getBoundingClientRect().left);
+      editorContainer.style.width = newWidth + 'px';
+    };
+    
+    handleE.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent dragging from starting
+      document.addEventListener('mousemove', resizeEFunction);
+      document.addEventListener('mouseup', stopResize);
+    });
+  }
+  
+  // South (bottom) resize handle
+  const handleS = document.querySelector('.resize-handle-s');
+  if (handleS && !handleS.hasAttribute('data-resizable')) {
+    handleS.setAttribute('data-resizable', 'true');
+    
+    resizeSFunction = function(e) {
+      const newHeight = Math.max(MIN_HEIGHT, e.clientY - editorContainer.getBoundingClientRect().top);
+      editorContainer.style.height = newHeight + 'px';
+      
+      // Also update the editor and ProseMirror height
+      const editorElement = document.getElementById('editor');
+      if (editorElement) {
+        editorElement.style.height = (newHeight - 60) + 'px'; // Subtracting header height
+      }
+    };
+    
+    handleS.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent dragging from starting
+      document.addEventListener('mousemove', resizeSFunction);
+      document.addEventListener('mouseup', stopResize);
+    });
+  }
+  
+  // Southeast (corner) resize handle
+  const handleSE = document.querySelector('.resize-handle-se');
+  if (handleSE && !handleSE.hasAttribute('data-resizable')) {
+    handleSE.setAttribute('data-resizable', 'true');
+    
+    resizeSEFunction = function(e) {
+      const newWidth = Math.max(MIN_WIDTH, e.clientX - editorContainer.getBoundingClientRect().left);
+      const newHeight = Math.max(MIN_HEIGHT, e.clientY - editorContainer.getBoundingClientRect().top);
+      
+      editorContainer.style.width = newWidth + 'px';
+      editorContainer.style.height = newHeight + 'px';
+      
+      // Also update the editor and ProseMirror height
+      const editorElement = document.getElementById('editor');
+      if (editorElement) {
+        editorElement.style.height = (newHeight - 60) + 'px'; // Subtracting header height
+      }
+    };
+    
+    handleSE.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent dragging from starting
+      document.addEventListener('mousemove', resizeSEFunction);
+      document.addEventListener('mouseup', stopResize);
+    });
+  }
+  
+  // This is the key function that needs fixing
+  function stopResize() {
+    document.removeEventListener('mousemove', resizeEFunction);
+    document.removeEventListener('mousemove', resizeSFunction);
+    document.removeEventListener('mousemove', resizeSEFunction);
+    document.removeEventListener('mouseup', stopResize);
+    
+    // Add visual feedback that resize is complete
+    editorContainer.classList.remove('resizing');
+    
+    // Log to console to confirm stopResize was called
+    console.log('Resize stopped');
+  }
+  
+  // Add this to your CSS to show when resizing is happening
+  // Add a class when resizing starts
+  const addResizingClass = function(e) {
+    editorContainer.classList.add('resizing');
+  };
+  
+  if (handleE) handleE.addEventListener('mousedown', addResizingClass);
+  if (handleS) handleS.addEventListener('mousedown', addResizingClass);
+  if (handleSE) handleSE.addEventListener('mousedown', addResizingClass);
   
   function dragMouseDown(e) {
     e.preventDefault();
