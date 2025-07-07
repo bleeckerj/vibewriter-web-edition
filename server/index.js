@@ -67,6 +67,8 @@ app.use(cors({
       'http://127.0.0.1:3000',
       // Add production origins when deployed
       'http://146.190.161.27:3000',
+      'http://146.190.161.27',
+
     ];
     
 // For debugging - log all origins
@@ -255,7 +257,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../vanilla/index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`\x1b[32m%s\x1b[0m`, `🚀 Server running at http://localhost:${PORT}`);
   console.log(`\x1b[32m%s\x1b[0m`, `📝 Access the writing app in your browser`);
   console.log(`\x1b[32m%s\x1b[0m`, `🔄 Back-and-forth writing mode activated`);
