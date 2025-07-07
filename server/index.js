@@ -114,7 +114,6 @@ app.use(cors({
       'http://146.190.161.27',
       'https://vibewriter.nearfuturelaboratory.com',
       'http://vibewriter.nearfuturelaboratory.com'
-      
     ];
     
     // For debugging - log all origins
