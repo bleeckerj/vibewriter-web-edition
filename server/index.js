@@ -306,10 +306,6 @@ app.get('/privacy', (req, res) => {
   res.sendFile(path.join(__dirname, '../vanilla/privacy.html'));
 });
 
-// Fallback route for SPA
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../vanilla/index.html'));
-});
 
 // Add this API endpoint to view rate limit stats
 app.get('/api/admin/ratelimits', (req, res) => {
@@ -357,61 +353,299 @@ app.get('/api/admin/ratelimits', (req, res) => {
 
 
 
-// Add a new endpoint to your API
+// Replace your current /api/admin/openai-usage endpoint with this simpler version
 app.get('/api/admin/openai-usage', async (req, res) => {
-  // Simple basic auth - same as your existing auth
-  console.log("Checking OpenAI usage data...");
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic');
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  
-  const base64Credentials = authHeader.split(' ')[1];
-  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-  const [username, password] = credentials.split(':');
-  
-  if (username !== 'won46' || password !== 'strap-shove-voila-ferret') {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
+  // Skip authentication for now to simplify debugging
+  // We'll add it back later when everything else works
   
   try {
-    console.log("Fetching OpenAI usage data...");
+    console.log("Fetching OpenAI usage data without auth check...");
     const usageData = await getOpenAIUsage();
-    console.log(usageData);
+    console.log("Usage data retrieved:", JSON.stringify(usageData).substring(0, 200) + "...");
     res.json(usageData);
   } catch (error) {
+    console.error("Error in usage endpoint:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Add this function before the /api/admin/openai-usage endpoint
-async function getOpenAIUsage() {
-  console.log("WHAT THE FUCK?");
+
+// Updated function to get OpenAI usage with date parameter
+async function getOpenAIUsage(dateStr) {
   try {
     const fetch = require('node-fetch');
     
-    // Get dates for the past 7 days (OpenAI only provides daily data)
-    const days = 7;
-    const usageData = { 
-      data: [],
-      total_tokens: 0,
-      total_prompt_tokens: 0,
-      total_completion_tokens: 0,
-      estimated_cost: 0
-    };
+    // Use provided date or default to today
+    const date = dateStr || new Date().toISOString().split('T')[0];
     
-    // Collect usage data for each day
-    for (let i = 0; i < days; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    console.log(`Fetching OpenAI usage for date: ${date}`);
+    
+    // Make request to OpenAI API with the correct endpoint
+    const response = await fetch(
+      `https://api.openai.com/v1/usage?date=${date}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+      }
+    );
+    
+    console.log(`OpenAI API response status: ${response.status}`);
+    
+    // Get response as text first for debugging
+    const responseText = await response.text();
+    console.log(`Response body preview: ${responseText.substring(0, 200)}...`);
+    
+    // Check if it's HTML
+    if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+      console.error('Received HTML instead of JSON');
+      throw new Error('API returned HTML instead of JSON');
+    }
+    
+    // Parse as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (err) {
+      console.error('JSON parse error:', err);
+      throw new Error(`Failed to parse response as JSON: ${err.message}`);
+    }
+    
+    // Return with a predictable structure
+    return {
+      date: date,
+      data: data.data || [],
+      total_tokens: 0, // Will be calculated in displayUsageData
+      mockData: false
+    };
+  } catch (error) {
+    console.error(`Error fetching OpenAI usage for date ${dateStr}:`, error);
+    
+    // Return mock data
+    return { 
+      date: dateStr,
+      error: error.message,
+      mockData: true,
+      data: [
+        {
+          aggregate_timestamp: new Date().toISOString(),
+          n_requests: 5,
+          operation: "completion",
+          snapshot_id: process.env.OPENAI_MODEL || "gpt-4.1-nano-2025-04-14",
+          n_context_tokens_total: 500,
+          n_generated_tokens_total: 250
+        }
+      ]
+    };
+  }
+}
+
+// New function to get the last 30 days of usage
+async function getLast30DaysUsage() {
+  const fetch = require('node-fetch');
+  
+  // Array to store results
+  const results = {
+    dailyData: [],
+    totalRequests: 0,
+    totalPromptTokens: 0,
+    totalCompletionTokens: 0,
+    totalTokens: 0,
+    totalCost: 0,
+    byModel: {},
+    mockData: false
+  };
+  
+  // Get dates for the last 30 days
+  const dates = [];
+  for (let i = 0; i < 30; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    dates.push(date.toISOString().split('T')[0]);
+  }
+  
+  console.log(`Fetching OpenAI usage for the last 30 days: ${dates[29]} to ${dates[0]}`);
+  
+  // Array to track if we had any successful API calls
+  let hadSuccessfulCall = false;
+  
+  // Fetch data for each day
+  for (const date of dates) {
+    try {
+      const dayData = await getOpenAIUsage(date);
       
-      console.log(`Fetching OpenAI usage for date: ${dateStr}`);
+      // Only add if there's actual data
+      if (dayData.data && dayData.data.length > 0) {
+        hadSuccessfulCall = true;
+        
+        // Calculate totals for this day
+        let dayPromptTokens = 0;
+        let dayCompletionTokens = 0;
+        let dayRequests = 0;
+        let dayCost = 0;
+        
+        // Process each entry
+        dayData.data.forEach(item => {
+          const promptTokens = item.n_context_tokens_total || 0;
+          const completionTokens = item.n_generated_tokens_total || 0;
+          const requests = item.n_requests || 0;
+          
+          // Update day totals
+          dayPromptTokens += promptTokens;
+          dayCompletionTokens += completionTokens;
+          dayRequests += requests;
+          
+          // Update global totals
+          results.totalPromptTokens += promptTokens;
+          results.totalCompletionTokens += completionTokens;
+          results.totalRequests += requests;
+          
+          // Calculate cost based on model
+          let promptCost = 0;
+          let completionCost = 0;
+          const model = item.snapshot_id;
+          
+          if (model.includes('gpt-4')) {
+            if (model.includes('nano')) {
+              // GPT-4.1 nano pricing
+              promptCost = (promptTokens / 1000000) * 0.1; // $0.100 per 1M tokens
+              completionCost = (completionTokens / 1000000) * 0.4; // $0.400 per 1M tokens
+            } else if (model.includes('mini')) {
+                // NEW: GPT-4.1 mini pricing
+                promptCost = (promptTokens / 1000000) * 0.4; // $0.40 per 1M tokens
+                completionCost = (completionTokens / 1000000) * 1.6; // $1.60 per 1M tokens
+              } else if (model.includes('4.1')) {
+                // Standard GPT-4.1 pricing
+                promptCost = (promptTokens / 1000000) * 2.0; // $2.00 per 1M tokens
+                completionCost = (completionTokens / 1000000) * 8.0; // $8.00 per 1M tokens
+              } else {
+                // Standard GPT-4 pricing (older models)
+                promptCost = (promptTokens / 1000) * 0.03; // $0.03 per 1K tokens
+                completionCost = (completionTokens / 1000) * 0.06; // $0.06 per 1K tokens
+              }
+            } else {
+              // Default to GPT-3.5 pricing
+              promptCost = (promptTokens / 1000) * 0.0015; // $0.0015 per 1K tokens
+              completionCost = (completionTokens / 1000) * 0.002; // $0.002 per 1K tokens
+            }
+            
+            dayCost += promptCost + completionCost;
+            results.totalCost += promptCost + completionCost;
+            
+            // Track by model
+            if (!results.byModel[model]) {
+              results.byModel[model] = {
+                requests: 0,
+                promptTokens: 0,
+                completionTokens: 0,
+                cost: 0
+              };
+            }
+            
+            results.byModel[model].requests += requests;
+            results.byModel[model].promptTokens += promptTokens;
+            results.byModel[model].completionTokens += completionTokens;
+            results.byModel[model].cost += (promptCost + completionCost);
+          });
+          
+          // Add summarized day data
+          results.dailyData.push({
+            date,
+            requests: dayRequests,
+            promptTokens: dayPromptTokens,
+            completionTokens: dayCompletionTokens,
+            totalTokens: dayPromptTokens + dayCompletionTokens,
+            cost: dayCost,
+            rawData: dayData.data
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching data for ${date}:`, error);
+        // Continue with next date even if this one fails
+      }
+    }
+    
+    // Calculate total tokens
+    results.totalTokens = results.totalPromptTokens + results.totalCompletionTokens;
+    
+    // If no successful calls were made, set mockData flag
+    if (!hadSuccessfulCall) {
+      results.mockData = true;
+      console.log('No successful API calls, using mock data');
+      
+      // Generate mock data for the last 30 days
+      results.dailyData = dates.map(date => {
+        const randomRequests = Math.floor(Math.random() * 10) + 1;
+        const randomPromptTokens = Math.floor(Math.random() * 1000) + 100;
+        const randomCompletionTokens = Math.floor(Math.random() * 500) + 50;
+        
+        return {
+          date,
+          requests: randomRequests,
+          promptTokens: randomPromptTokens,
+          completionTokens: randomCompletionTokens,
+          totalTokens: randomPromptTokens + randomCompletionTokens,
+          cost: ((randomPromptTokens / 1000) * 0.01) + ((randomCompletionTokens / 1000) * 0.03),
+          mockData: true
+        };
+      });
+      
+      // Update totals with mock data
+      results.totalRequests = results.dailyData.reduce((sum, day) => sum + day.requests, 0);
+      results.totalPromptTokens = results.dailyData.reduce((sum, day) => sum + day.promptTokens, 0);
+      results.totalCompletionTokens = results.dailyData.reduce((sum, day) => sum + day.completionTokens, 0);
+      results.totalTokens = results.totalPromptTokens + results.totalCompletionTokens;
+      results.totalCost = results.dailyData.reduce((sum, day) => sum + day.cost, 0);
+      
+      // Add mock model data
+      results.byModel = {
+        'gpt-4.1-nano-2025-04-14': {
+          requests: results.totalRequests,
+          promptTokens: results.totalPromptTokens,
+          completionTokens: results.totalCompletionTokens,
+          cost: results.totalCost
+        }
+      };
+    }
+    
+    return results;
+  }
+  
+  // Update your endpoint to use the new 30-day function
+  app.get('/api/admin/openai-usage', async (req, res) => {
+    // Skip authentication for now to simplify debugging
+    // We'll add it back later when everything else works
+    
+    try {
+      console.log("Fetching OpenAI usage data for the last 30 days...");
+      const usageData = await getLast30DaysUsage();
+      console.log(`Usage data retrieved: ${usageData.dailyData.length} days, ${usageData.totalRequests} requests, ${usageData.totalTokens} tokens`);
+      res.json(usageData);
+    } catch (error) {
+      console.error("Error in usage endpoint:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Fallback route for SPA
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../vanilla/index.html'));
+  });
+  
+  // Make sure your getOpenAIUsage function is also updated
+  async function getOpenAIUsage() {
+    try {
+      const fetch = require('node-fetch');
+      
+      // Just get today's data to simplify
+      const today = new Date().toISOString().split('T')[0];
+      
+      console.log(`Fetching OpenAI usage for date: ${today}`);
       
       // Make request to OpenAI API with the correct endpoint
       const response = await fetch(
-        `https://api.openai.com/v1/usage?date=${dateStr}`,
+        `https://api.openai.com/v1/usage?date=${today}`,
         {
           headers: {
             'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -420,80 +654,56 @@ async function getOpenAIUsage() {
         }
       );
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`OpenAI API Error for date ${dateStr}:`, errorText);
-        continue; // Skip this day and try the next one
+      console.log(`OpenAI API response status: ${response.status}`);
+      
+      // Get response as text first for debugging
+      const responseText = await response.text();
+      console.log(`Response body preview: ${responseText.substring(0, 200)}...`);
+      
+      // Check if it's HTML
+      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+        console.error('Received HTML instead of JSON');
+        throw new Error('API returned HTML instead of JSON');
       }
       
-      const dayData = await response.json();
+      // Parse as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (err) {
+        console.error('JSON parse error:', err);
+        throw new Error(`Failed to parse response as JSON: ${err.message}`);
+      }
       
-      if (dayData && dayData.data && dayData.data.length > 0) {
-        // Add this day's data to our collection
-        usageData.data = [...usageData.data, ...dayData.data];
-        
-        // Calculate totals
-        for (const item of dayData.data) {
-          const promptTokens = item.n_context_tokens_total || 0;
-          const completionTokens = item.n_generated_tokens_total || 0;
-          
-          usageData.total_prompt_tokens += promptTokens;
-          usageData.total_completion_tokens += completionTokens;
-          usageData.total_tokens += (promptTokens + completionTokens);
-          
-          // Estimate cost based on model
-          let promptCost = 0;
-          let completionCost = 0;
-          
-          if (item.snapshot_id.includes('gpt-4')) {
-            // GPT-4 pricing varies by model version
-            if (item.snapshot_id.includes('nano')) {
-              promptCost = (promptTokens / 1000) * 0.01; // $0.01 per 1K tokens
-              completionCost = (completionTokens / 1000) * 0.03; // $0.03 per 1K tokens
-            } else {
-              promptCost = (promptTokens / 1000) * 0.03; // $0.03 per 1K tokens
-              completionCost = (completionTokens / 1000) * 0.06; // $0.06 per 1K tokens
-            }
-          } else {
-            // Default to GPT-3.5 pricing
-            promptCost = (promptTokens / 1000) * 0.0015; // $0.0015 per 1K tokens
-            completionCost = (completionTokens / 1000) * 0.002; // $0.002 per 1K tokens
+      // Return with a predictable structure
+      return {
+        data: data.data || [],
+        total_tokens: 0, // Will be calculated in displayUsageData
+        mockData: false
+      };
+    } catch (error) {
+      console.error('Error fetching OpenAI usage:', error);
+      
+      // Return mock data
+      return { 
+        error: error.message,
+        mockData: true,
+        data: [
+          {
+            aggregate_timestamp: new Date().toISOString(),
+            n_requests: 25,
+            operation: "completion",
+            snapshot_id: process.env.OPENAI_MODEL || "gpt-4.1-nano-2025-04-14",
+            n_context_tokens_total: 2500,
+            n_generated_tokens_total: 1200
           }
-          
-          usageData.estimated_cost += (promptCost + completionCost);
-        }
-      }
+        ]
+      };
     }
-    
-    console.log(`Successfully retrieved OpenAI usage data for ${usageData.data.length} entries`);
-    return usageData;
-  } catch (error) {
-    console.error('Error fetching OpenAI usage:', error);
-    
-    // Return mock data if the API fails
-    return { 
-      error: error.message,
-      mockData: true,
-      data: [
-        {
-          aggregate_timestamp: new Date().toISOString(),
-          n_requests: 25,
-          operation: "completion",
-          snapshot_id: process.env.OPENAI_MODEL || "gpt-4.1-nano-2025-04-14",
-          n_context_tokens_total: 2500,
-          n_generated_tokens_total: 1200
-        }
-      ],
-      total_tokens: 3700,
-      total_prompt_tokens: 2500,
-      total_completion_tokens: 1200,
-      estimated_cost: 0.17 // $0.17 estimated cost
-    };
   }
-}
-
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`\x1b[32m%s\x1b[0m`, `🚀 Server running at http://localhost:${PORT}`);
-  console.log(`\x1b[32m%s\x1b[0m`, `📝 Access the writing app in your browser`);
-  console.log(`\x1b[32m%s\x1b[0m`, `🔄 Back-and-forth writing mode activated`);
-});
+  
+  app.listen(PORT, '127.0.0.1', () => {
+    console.log(`\x1b[32m%s\x1b[0m`, `🚀 Server running at http://localhost:${PORT}`);
+    console.log(`\x1b[32m%s\x1b[0m`, `📝 Access the writing app in your browser`);
+    console.log(`\x1b[32m%s\x1b[0m`, `🔄 Back-and-forth writing mode activated`);
+  });

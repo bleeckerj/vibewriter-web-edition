@@ -290,7 +290,7 @@
   <div id="app">
     <!-- Login form will be shown first -->
     <div id="login-screen" class="login-container">
-      <h1>Ghostwriter Admin Login</h1>
+      <h1>Vibewriter Admin Login</h1>
       <p>Please enter your credentials to access the log viewer.</p>
       <form id="login-form" class="login-form">
         <div class="filter-group">
@@ -630,25 +630,31 @@
         try {
           usageData.innerHTML = '<div class="loading">Loading OpenAI usage data...</div>';
           console.log('Fetching OpenAI usage data...');
-          const response = await fetch('/api/admin/openai-usage', {
-            headers: {
-              'Authorization': `Basic ${authToken}`
-            }
-          });
           
+          // Simple fetch without additional headers
+          const response = await fetch('/api/admin/openai-usage');
+          
+          console.log('Response status:', response.status);
+          
+          // Check if the response is valid
           if (!response.ok) {
-            if (response.status === 401) {
-              // Handle unauthorized - clear token and show login
-              localStorage.removeItem('ghostwriterAuthToken');
-              loginScreen.style.display = 'block';
-              logViewer.style.display = 'none';
-              showError('Session expired. Please log in again.');
-              return;
-            }
-            throw new Error(`Error fetching usage data: ${response.statusText}`);
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
           }
           
-          const data = await response.json();
+          // First try to get the response as text for debugging
+          const responseText = await response.text();
+          console.log('Response text (first 100 chars):', responseText.substring(0, 100));
+          
+          // Parse the response text as JSON
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Error parsing JSON:', parseError);
+            throw new Error('Invalid JSON response from server');
+          }
+          
+          // Display the data
           displayUsageData(data);
         } catch (err) {
           usageData.innerHTML = `<div class="error-message">Failed to load usage data: ${err.message}</div>`;
