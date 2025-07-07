@@ -103,8 +103,14 @@ if (!process.env.OPENAI_API_KEY) {
 // CORS configuration for development and production
 app.use(cors({
   origin: function(origin, callback) {
+    // Log every origin request for debugging
+    console.log('CORS Request Origin:', origin);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('No origin - allowing request');
+      return callback(null, true);
+    }
     
     const allowedOrigins = [
       'http://localhost:3000',
@@ -116,14 +122,14 @@ app.use(cors({
       'http://vibewriter.nearfuturelaboratory.com'
     ];
     
-    // For debugging - log all origins
-    console.log('Request origin:', origin);
+    console.log('Checking origin against allowed origins:', allowedOrigins);
+    console.log('Origin includes check:', allowedOrigins.includes(origin));
     
-    // Allow requests with no origin (like mobile apps, curl requests)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin)) {
+      console.log('Origin explicitly allowed:', origin);
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
+      console.log('Origin explicitly blocked:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -322,14 +328,11 @@ app.get('/api/admin/ratelimits', (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   
+  // Get current time for reference
+  const now = new Date();
+  
   // Return rate limit info
-  // Note: express-rate-limit doesn't expose this data directly
-  // This is just placeholder information
   res.json({
-    globalStats: {
-      totalRequests: "Data not available in express-rate-limit",
-      limitedRequests: "Data not available in express-rate-limit"
-    },
     rateWindowMs: {
       api: apiLimiter.windowMs / 60000 + " minutes",
       llm: llmLimiter.windowMs / 60000 + " minutes",
@@ -339,9 +342,155 @@ app.get('/api/admin/ratelimits', (req, res) => {
       api: apiLimiter.max + " requests per window",
       llm: llmLimiter.max + " requests per window",
       admin: adminLimiter.max + " requests per window"
+    },
+    // Include server time for reference
+    serverTime: now.toISOString(),
+    // Add any blocked IPs if you're tracking them
+    blockedIPs: [], // This would need additional code to track blocked IPs
+    // Add some stats about total requests (optional - these need to be implemented separately)
+    stats: {
+      totalRequests: "Stats not implemented yet",
+      blockedRequests: "Stats not implemented yet"
     }
   });
 });
+
+
+
+// Add a new endpoint to your API
+app.get('/api/admin/openai-usage', async (req, res) => {
+  // Simple basic auth - same as your existing auth
+  console.log("Checking OpenAI usage data...");
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic');
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+  const [username, password] = credentials.split(':');
+  
+  if (username !== 'won46' || password !== 'strap-shove-voila-ferret') {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  
+  try {
+    console.log("Fetching OpenAI usage data...");
+    const usageData = await getOpenAIUsage();
+    console.log(usageData);
+    res.json(usageData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add this function before the /api/admin/openai-usage endpoint
+async function getOpenAIUsage() {
+  console.log("WHAT THE FUCK?");
+  try {
+    const fetch = require('node-fetch');
+    
+    // Get dates for the past 7 days (OpenAI only provides daily data)
+    const days = 7;
+    const usageData = { 
+      data: [],
+      total_tokens: 0,
+      total_prompt_tokens: 0,
+      total_completion_tokens: 0,
+      estimated_cost: 0
+    };
+    
+    // Collect usage data for each day
+    for (let i = 0; i < days; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      console.log(`Fetching OpenAI usage for date: ${dateStr}`);
+      
+      // Make request to OpenAI API with the correct endpoint
+      const response = await fetch(
+        `https://api.openai.com/v1/usage?date=${dateStr}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`OpenAI API Error for date ${dateStr}:`, errorText);
+        continue; // Skip this day and try the next one
+      }
+      
+      const dayData = await response.json();
+      
+      if (dayData && dayData.data && dayData.data.length > 0) {
+        // Add this day's data to our collection
+        usageData.data = [...usageData.data, ...dayData.data];
+        
+        // Calculate totals
+        for (const item of dayData.data) {
+          const promptTokens = item.n_context_tokens_total || 0;
+          const completionTokens = item.n_generated_tokens_total || 0;
+          
+          usageData.total_prompt_tokens += promptTokens;
+          usageData.total_completion_tokens += completionTokens;
+          usageData.total_tokens += (promptTokens + completionTokens);
+          
+          // Estimate cost based on model
+          let promptCost = 0;
+          let completionCost = 0;
+          
+          if (item.snapshot_id.includes('gpt-4')) {
+            // GPT-4 pricing varies by model version
+            if (item.snapshot_id.includes('nano')) {
+              promptCost = (promptTokens / 1000) * 0.01; // $0.01 per 1K tokens
+              completionCost = (completionTokens / 1000) * 0.03; // $0.03 per 1K tokens
+            } else {
+              promptCost = (promptTokens / 1000) * 0.03; // $0.03 per 1K tokens
+              completionCost = (completionTokens / 1000) * 0.06; // $0.06 per 1K tokens
+            }
+          } else {
+            // Default to GPT-3.5 pricing
+            promptCost = (promptTokens / 1000) * 0.0015; // $0.0015 per 1K tokens
+            completionCost = (completionTokens / 1000) * 0.002; // $0.002 per 1K tokens
+          }
+          
+          usageData.estimated_cost += (promptCost + completionCost);
+        }
+      }
+    }
+    
+    console.log(`Successfully retrieved OpenAI usage data for ${usageData.data.length} entries`);
+    return usageData;
+  } catch (error) {
+    console.error('Error fetching OpenAI usage:', error);
+    
+    // Return mock data if the API fails
+    return { 
+      error: error.message,
+      mockData: true,
+      data: [
+        {
+          aggregate_timestamp: new Date().toISOString(),
+          n_requests: 25,
+          operation: "completion",
+          snapshot_id: process.env.OPENAI_MODEL || "gpt-4.1-nano-2025-04-14",
+          n_context_tokens_total: 2500,
+          n_generated_tokens_total: 1200
+        }
+      ],
+      total_tokens: 3700,
+      total_prompt_tokens: 2500,
+      total_completion_tokens: 1200,
+      estimated_cost: 0.17 // $0.17 estimated cost
+    };
+  }
+}
 
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`\x1b[32m%s\x1b[0m`, `🚀 Server running at http://localhost:${PORT}`);
