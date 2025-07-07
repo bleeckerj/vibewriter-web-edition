@@ -5,6 +5,7 @@ const path = require('path');
 const { OpenAI } = require('openai');
 const fs = require('fs');
 const rfs = require('rotating-file-stream');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +15,49 @@ const logsDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
 }
+
+// Configure rate limiters for different endpoints
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 60, // Limit each IP to 60 requests per 15-minute window (4 requests per minute average)
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  message: {
+    error: 'Too many requests from this IP',
+    suggestion: 'Please try again later. Rate limit: 60 requests per 15 minutes.'
+  },
+  // Add to the logs when rate limit is hit
+  handler: (req, res, options) => {
+    console.log(`⚠️ Rate limit exceeded for IP: ${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`);
+    res.status(429).json(options.message);
+  }
+});
+
+// More strict limiter for LLM endpoint specifically
+const llmLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 20, // Limit each IP to 20 requests per 5 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many AI requests',
+    suggestion: 'To prevent abuse, we limit AI generations to 20 per 5 minutes.'
+  },
+  handler: (req, res, options) => {
+    console.log(`⚠️ LLM rate limit exceeded for IP: ${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`);
+    res.status(429).json(options.message);
+  }
+});
+
+// Separate limiter for admin endpoints
+const adminLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 30, // Limit admin requests
+  message: {
+    error: 'Too many admin requests',
+    suggestion: 'Please try again later.'
+  }
+});
 
 // Create rotating write stream for logs
 const accessLogStream = rfs.createStream('ghostwriter-access.log', {
@@ -68,10 +112,12 @@ app.use(cors({
       // Add production origins when deployed
       'http://146.190.161.27:3000',
       'http://146.190.161.27',
-
+      'https://vibewriter.nearfuturelaboratory.com',
+      'http://vibewriter.nearfuturelaboratory.com'
+      
     ];
     
-// For debugging - log all origins
+    // For debugging - log all origins
     console.log('Request origin:', origin);
     
     // Allow requests with no origin (like mobile apps, curl requests)
@@ -96,8 +142,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Apply the general API rate limiter to all API routes
+app.use('/api/', apiLimiter);
+
 // LLM API endpoint
-app.post('/api/llm', async (req, res) => {
+app.post('/api/llm', llmLimiter, async (req, res) => {
   const { system, prompt, aiLength = 'medium' } = req.body;
   
   if (!system || !prompt) {
@@ -105,7 +154,7 @@ app.post('/api/llm', async (req, res) => {
       error: "Missing required parameters: 'system' and 'prompt' are required" 
     });
   }
-
+  
   try {
     console.log('Sending request to OpenAI API...');
     console.log('Prompt length:', prompt.length, 'characters');
@@ -118,14 +167,14 @@ app.post('/api/llm', async (req, res) => {
     let maxTokens;
     switch (aiLength) {
       case 'short':
-        maxTokens = isInitial ? 30 : 40; // About one sentence
-        break;
+      maxTokens = isInitial ? 30 : 40; // About one sentence
+      break;
       case 'long':
-        maxTokens = isInitial ? 200 : 250; // ~150 words
-        break;
+      maxTokens = isInitial ? 200 : 250; // ~150 words
+      break;
       case 'medium':
       default:
-        maxTokens = isInitial ? 120 : 150; // ~80 words
+      maxTokens = isInitial ? 120 : 150; // ~80 words
     }
     
     console.log(`Using max_tokens: ${maxTokens}`);
@@ -255,6 +304,44 @@ app.get('/privacy', (req, res) => {
 // Fallback route for SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../vanilla/index.html'));
+});
+
+// Add this API endpoint to view rate limit stats
+app.get('/api/admin/ratelimits', (req, res) => {
+  // Simple basic auth - same as your existing auth
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic');
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+  const [username, password] = credentials.split(':');
+  
+  if (username !== 'won46' || password !== 'strap-shove-voila-ferret') {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  
+  // Return rate limit info
+  // Note: express-rate-limit doesn't expose this data directly
+  // This is just placeholder information
+  res.json({
+    globalStats: {
+      totalRequests: "Data not available in express-rate-limit",
+      limitedRequests: "Data not available in express-rate-limit"
+    },
+    rateWindowMs: {
+      api: apiLimiter.windowMs / 60000 + " minutes",
+      llm: llmLimiter.windowMs / 60000 + " minutes",
+      admin: adminLimiter.windowMs / 60000 + " minutes"
+    },
+    requestLimits: {
+      api: apiLimiter.max + " requests per window",
+      llm: llmLimiter.max + " requests per window",
+      admin: adminLimiter.max + " requests per window"
+    }
+  });
 });
 
 app.listen(PORT, '127.0.0.1', () => {
