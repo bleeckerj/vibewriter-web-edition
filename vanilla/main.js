@@ -117,7 +117,7 @@ function initializeEditor() {
                 hasUserStartedTyping = true;
                 window.timerControls.start();
                 
-                // Update indicator to show timer is running
+                // Keep indicator showing brain emoji for user's turn
                 const indicator = document.getElementById('turn-indicator');
                 if (indicator) {
                   indicator.textContent = "🧠";
@@ -291,19 +291,16 @@ async function handleStartButtonClick() {
     console.log("Free Writing mode selected - user starts first");
     // In Free Writing mode, user starts first
     startBtn.disabled = false;
-    startBtn.textContent = 'YOUR TURN';
     // Set to user's turn immediately
     startUserTurn();
   } else {
     // For all other genres, AI starts with a prompt
     startBtn.disabled = true;
-    startBtn.textContent = 'AI IS WRITING...';
     
     // Get first prompt from LLM
     await getLLMResponse(selectedGenre);
     
     // After LLM response, it's user's turn
-    startBtn.textContent = 'YOUR TURN';
     startBtn.disabled = false;
   }
 }
@@ -315,8 +312,7 @@ function startUserTurn() {
   hasUserStartedTyping = false; // Reset for each new user turn
   updateTurnIndicator(true);
   editor.setEditable(true);
-  document.getElementById('startBtn').textContent = 'YOUR TURN';
-  
+
   // Make sure the timer is reset and showing full time
   if (window.timerControls && typeof window.timerControls.reset === 'function') {
     window.timerControls.reset();
@@ -360,10 +356,9 @@ async function endUserTurn() {
     }
   }
   
-  // Update button to indicate LLM is working
+  // Update button state while LLM is working
   const startBtn = document.getElementById('startBtn');
   startBtn.disabled = true;
-  startBtn.textContent = 'AI IS WRITING...';
   
   // Get the selected genre
   const genreSelect = document.getElementById('genre-select');
@@ -373,7 +368,7 @@ async function endUserTurn() {
   await getLLMResponse(selectedGenre, currentContent);
   
   // After LLM response, it's user's turn again
-  startBtn.textContent = 'START';
+  //startBtn.textContent = 'START';
   startBtn.disabled = false;
 }
 
@@ -570,14 +565,17 @@ function makeEditorDraggable() {
   const editorContainer = document.getElementById('editor-container');
   let dragHandle = document.querySelector('.editor-drag-handle');
   
-  // Only create the drag handle if it doesn't already exist
+  // Use the menu button as drag handle
+  dragHandle = document.getElementById('menu-button');
+  
+  // If menu button doesn't exist, create a fallback drag handle
   if (!dragHandle) {
-    // Create a drag handle for the editor
+    console.log("Menu button not found, creating fallback drag handle");
     dragHandle = document.createElement('div');
     dragHandle.className = 'editor-drag-handle';
     dragHandle.innerHTML = '<span class="drag-icon">☰</span> Editor';
     
-    // Insert the drag handle at the beginning of the editor container
+    // Insert the fallback drag handle at the beginning of the editor container
     editorContainer.insertBefore(dragHandle, editorContainer.firstChild);
   }
   

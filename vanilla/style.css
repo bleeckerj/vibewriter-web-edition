@@ -205,6 +205,7 @@ h1 {
 .genre-selector,
 .timer-selector,
 .ai-length-selector {
+    font-family: "3270";
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -213,24 +214,50 @@ h1 {
 .genre-selector label,
 .timer-selector label,
 .ai-length-selector label {
-  font-family: var(--font-mono);
+  font-family: "3270";
   font-weight: 600;
-  color: #333;
+  color: black;
   white-space: nowrap;
 }
 
 .genre-selector select,
 .timer-selector select,
-.ai-length-selector select {
-  font-family: var(--font-mono);
-  padding: 8px 12px;
-  border-radius: 0; /* More terminal-like */
-  border: 1px solid #ddd;
+.ai-length-selector select,
+#genre-select,
+#timer-select,
+#ai-length-select,
+.control-group select,
+.config-controls select {
+  font-family: '3270', monospace !important; /* Use !important to override any browser defaults */
+  font-size: 0.85rem; /* Match label size */
+  padding: 4px 8px;
+  border-radius: 0;
+  border: 1px solid #555;
   background-color: white;
-  font-size: 1rem;
+  color: black;
   cursor: pointer;
   outline: none;
-  transition: border-color 0.2s;
+  appearance: none; /* Remove default appearance */
+  -webkit-appearance: none; /* Safari */
+  -moz-appearance: none; /* Firefox */
+  background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+  background-repeat: no-repeat;
+  background-position-x: calc(100% - 5px);
+  background-position-y: center;
+  background-size: 16px;
+  padding-right: 25px;
+}
+
+/* Also ensure the labels use the same font */
+.genre-selector label,
+.timer-selector label,
+.ai-length-selector label,
+.control-group label,
+.config-controls label {
+  font-family: '3270', monospace !important;
+  font-size: 0.85rem;
+  color: black;
+  white-space: nowrap;
 }
 
 .genre-selector select:hover,
@@ -419,24 +446,24 @@ h1 {
 }
 
 #startBtn {
-  padding: 10px 20px;
+  padding: 3px 3px;
   font-size: 1rem;
   font-weight: bold;
-  background-color: #3b82f6;
-  color: white;
-  border: 1px solid #1e40af;
+  background-color: white;
+  color: black;
+  border: 1px solid black;
   border-radius: 0; /* More terminal-like */
   cursor: pointer;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
-  font-family: var(--font-mono);
+  font-family: "3270";
   position: relative;
   transition: transform 10ms ease-in-out, box-shadow 10ms ease-in-out, background-color 10ms ease-in-out, border-color 10ms ease-in-out;
 }
 #startBtn:hover:not([disabled]) {
-  background-color: #2563eb;
+  background-color: #f0f0f0;
   box-shadow: inset 1.5px 2px 0px 0px rgba(0,0,0,0.8);
   transform: translateX(1px) translateY(1px) scale(0.99);
-  border-color: #1e3a8a;
+  border-color: black;
 }
 #startBtn:disabled {
   background-color: #93c5fd;
@@ -729,4 +756,62 @@ h1 {
   border: 1px solid #666;
   padding: 4px 8px;
   font-size: 0.85rem;
+}
+
+/* Editor toolbar split into two rows */
+.editor-toolbar.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.editor-toolbar.bottom-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.editor-toolbar .left-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.editor-toolbar .right-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.editor-toolbar .config-controls {
+font-family: "3270";
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  width: 100%;
+  font-size: 1.2rem;
+}
+
+/* Move turn indicator to toolbar */
+.turn-indicator {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  background: transparent;
+  padding: 0;
+  font-size: 1.5rem;
+  box-shadow: none;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
 }

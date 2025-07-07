@@ -109,6 +109,8 @@
   --menu-bg: #0f0f0f;
   --menu-text: #33ff33;
   --menu-border: #1a8c1a;
+  --toolbar-bg: #000;
+  --toolbar-text: #00ff00;
 }
 
 /* Top menu bar */
@@ -364,13 +366,21 @@ button:active {
 
 /* Turn indicator */
 .turn-indicator {
-  font-family: var(--font-3270);
-  padding: 2px 8px;
-  font-size: 0.75rem;
-  background-color: var(--turn-indicator-bg);
-  color: var(--turn-indicator-text);
-  text-align: center;
-  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none !important;
+  background: transparent;
+  color: #00ff00;
+  padding: 0;
+  font-size: 1.5rem;
+  box-shadow: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
 }
 
 /* Editor styling */
@@ -475,11 +485,46 @@ label {
   background-color: var(--hover-bg);
 }
 
-/* Remove footer links as they're now in the top menu */
+/* Editor toolbar split into two rows - TUI style */
+.editor-toolbar.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--toolbar-bg, #000);
+  border-bottom: 1px solid var(--border-color, #00ff00);
+  color: var(--toolbar-text, #00ff00);
+  font-family: '3270 Mono', monospace;
+}
 
-/* Green filter for emoji */
-.green-emoji {
-  filter: sepia(100%) hue-rotate(70deg) brightness(0.8) saturate(300%);
+.editor-toolbar.bottom-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--toolbar-bg, #000);
+  border-bottom: 1px solid var(--border-color, #00ff00);
+  color: var(--toolbar-text, #00ff00);
+  font-family: '3270 Mono', monospace;
+}
+
+.editor-toolbar .left-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.editor-toolbar .right-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.editor-toolbar .config-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  width: 100%;
 }
 
 /* Add an active signal effect to the top bar when AI is generating */

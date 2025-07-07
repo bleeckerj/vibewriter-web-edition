@@ -35,12 +35,25 @@
   
   <!-- <h1>Vibe Mode Writing Tool</h1> -->
   
+  <!-- Editor container with two-row toolbar -->
   <div id="editor-container">
-    <div class="editor-drag-handle">
-      <span class="drag-icon">☰</span> Editor
-      <div class="editor-controls">
+    <!-- Editor toolbar top row: hamburger, start button, turn indicator, style switcher -->
+    <div class="editor-toolbar top-row">
+      <div class="left-controls">
+        <button id="menu-button" class="toolbar-btn">☰</button>
+        <button id="startBtn" class="primary-btn">START</button>
+      </div>
+      <div class="right-controls">
+        <div id="turn-indicator" class="turn-indicator">🤖</div>
+        <button id="style-switcher" class="toolbar-btn">TUI Mode</button>
+      </div>
+    </div>
+    
+    <!-- Editor toolbar bottom row: configuration options -->
+    <div class="editor-toolbar bottom-row">
+      <div class="config-controls">
         <div class="control-group">
-          <label for="genre-select">Vibe/Genre:</label>
+          <label for="genre-select">Vibe</label>
           <select id="genre-select">
             <option value="freewriting">Free Writing</option>
             <option value="hardboiled">Hardboiled Detective</option>
@@ -53,28 +66,31 @@
             <option value="solarpunk">Solarpunk</option>
           </select>
         </div>
+        
         <div class="control-group">
-          <label for="timer-select">Timer:</label>
+          <label for="timer-select">Timer</label>
           <select id="timer-select">
-            <option value="30">30 sec</option>
-            <option value="60">1 min</option>
-            <option value="180">3 min</option>
-            <option value="300">5 min</option>
+            <option value="15">15s</option>
+            <option value="30">30s</option>
+            <option value="60" selected>1m</option>
+            <option value="120">2m</option>
+            <option value="300">5m</option>
+            <option value="600">10m</option>
           </select>
         </div>
+        
         <div class="control-group">
-          <label for="ai-length-select">AI Length:</label>
+          <label for="ai-length-select">AI Length</label>
           <select id="ai-length-select">
-            <option value="short">Short (one sentence)</option>
-            <option value="medium" selected>Medium (~80 words)</option>
-            <option value="long">Long (~150 words)</option>
+            <option value="short">Short</option>
+            <option value="medium" selected>Medium</option>
+            <option value="long">Long</option>
           </select>
         </div>
-        <button id="startBtn">START</button>
-        <button id="style-switcher" class="editor-button">TUI Mode</button>
       </div>
     </div>
-    <div id="turn-indicator" class="turn-indicator">🤖</div>
+    
+    <!-- Editor content -->
     <div id="editor" spellcheck="true"></div>
   </div>
   
