@@ -7,7 +7,7 @@ const fs = require('fs');
 const rfs = require('rotating-file-stream');
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
 
 // Create logs directory if it doesn't exist
 const logsDir = path.join(__dirname, 'logs');
@@ -69,9 +69,14 @@ app.use(cors({
       'http://146.190.161.27:3000',
     ];
     
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+// For debugging - log all origins
+    console.log('Request origin:', origin);
+    
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
