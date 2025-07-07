@@ -214,7 +214,7 @@ app.get('/api/admin/logs', (req, res) => {
   const [username, password] = credentials.split(':');
   
   // Check credentials (in production, use environment variables or a secure method)
-  if (username !== 'admin' || password !== 'ghostwriter123') {
+  if (username !== 'won46' || password !== 'strap-shove-voila-ferret') {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   
