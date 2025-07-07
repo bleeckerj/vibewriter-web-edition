@@ -963,3 +963,37 @@ font-family: "3270";
 .resize-handle-s, .resize-handle-se {
   bottom: 0;
 }
+
+/* Remove default focus outline and add a subtle gray box-shadow */
+.ProseMirror:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2) !important;
+  border-color: transparent !important;
+}
+
+/* Also apply to the editor container when focused */
+#editor:focus,
+#editor:focus-within {
+  outline: none !important;
+  border-color: transparent !important;
+}
+
+/* For the editor container when it has focus */
+#editor-container:focus,
+#editor-container:focus-within {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2) !important;
+  border-color: #ccc !important;
+}
+
+/* For TUI Style */
+.tui-mode .ProseMirror:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 1px rgba(0, 255, 0, 0.2) !important;
+  border-color: transparent !important;
+}
+
+/* Remove any default browser focus outlines */
+:focus {
+  outline-color: transparent !important;
+}

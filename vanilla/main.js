@@ -763,15 +763,15 @@ function initStyleSwitcher() {
   // Apply the saved UI mode
   if (uiMode === 'tui') {
     styleSheet.href = 'tui.css';
-    styleSwitcher.textContent = 'Standard Mode';
+    styleSwitcher.textContent = 'Standard Style';
     document.body.classList.add('tui-mode');
-    // Apply green filter to emoji in TUI mode
+    // Apply green filter to emoji in TUI Style
     document.querySelectorAll('.drag-icon').forEach(el => {
       el.classList.add('green-emoji');
     });
   } else {
     styleSheet.href = 'style.css';
-    styleSwitcher.textContent = 'TUI Mode';
+    styleSwitcher.textContent = 'TUI Style';
     document.body.classList.remove('tui-mode');
   }
   
@@ -780,7 +780,7 @@ function initStyleSwitcher() {
     if (styleSheet.href.includes('tui.css')) {
       // Switch to standard mode
       styleSheet.href = 'style.css';
-      styleSwitcher.textContent = 'TUI Mode';
+      styleSwitcher.textContent = 'TUI Style';
       document.body.classList.remove('tui-mode');
       uiMode = 'standard';
       // Remove green filter from emoji
@@ -788,19 +788,35 @@ function initStyleSwitcher() {
         el.classList.remove('green-emoji');
       });
     } else {
-      // Switch to TUI mode
+      // Switch to TUI Style
       styleSheet.href = 'tui.css';
-      styleSwitcher.textContent = 'Standard Mode';
+      styleSwitcher.textContent = 'Standard Style';
       document.body.classList.add('tui-mode');
       uiMode = 'tui';
-      // Apply green filter to emoji in TUI mode
+      // Apply green filter to emoji in TUI Style
       document.querySelectorAll('.drag-icon').forEach(el => {
         el.classList.add('green-emoji');
       });
     }
     
-    // Save preference to localStorage
-    localStorage.setItem('ghostwriter-ui-mode', uiMode);
+    // Store the preference
+    localStorage.setItem('uiMode', uiMode);
+    
+    // Re-create custom dropdowns after a small delay to ensure the stylesheet has switched
+    setTimeout(() => {
+      // First, remove existing custom dropdowns
+      document.querySelectorAll('.custom-select-container').forEach(container => {
+        const select = container.querySelector('select');
+        if (select) {
+          select.style.display = '';
+          container.parentNode.insertBefore(select, container);
+        }
+        container.remove();
+      });
+      
+      // Then create new ones
+      createCustomDropdowns();
+    }, 100);
   });
 }
 
@@ -875,6 +891,8 @@ function initializeApp() {
   // Initialize button state handlers
   setupButtonStateHandlers();
   
+  createCustomDropdowns();
+
   // Initialize style switcher
   initStyleSwitcher();
   
@@ -939,6 +957,9 @@ function createCustomDropdowns() {
   const selects = document.querySelectorAll('select');
   
   selects.forEach(select => {
+    // Skip if already converted
+    if (select.parentNode.classList.contains('custom-select-container')) return;
+    
     // Create container
     const container = document.createElement('div');
     container.className = 'custom-select-container';
@@ -975,7 +996,8 @@ function createCustomDropdowns() {
         trigger.textContent = customOption.textContent;
         
         // Update selected option
-        options.querySelector('.selected')?.classList.remove('selected');
+        const selectedOption = options.querySelector('.selected');
+        if (selectedOption) selectedOption.classList.remove('selected');
         customOption.classList.add('selected');
         
         // Close dropdown
@@ -992,21 +1014,31 @@ function createCustomDropdowns() {
     // Toggle dropdown on trigger click
     trigger.addEventListener('click', e => {
       e.stopPropagation();
+      
+      // Close all other open dropdowns first
+      document.querySelectorAll('.custom-options.open').forEach(openOptions => {
+        if (openOptions !== options) {
+          openOptions.classList.remove('open');
+        }
+      });
+      
+      // Toggle this dropdown
       options.classList.toggle('open');
     });
-    
-    // Close all dropdowns when clicking outside
-    document.addEventListener('click', () => {
-      const openOptions = document.querySelectorAll('.custom-options.open');
-      openOptions.forEach(o => o.classList.remove('open'));
-    });
   });
+  
+  // Close all dropdowns when clicking outside
+  document.addEventListener('click', () => {
+    const openOptions = document.querySelectorAll('.custom-options.open');
+    openOptions.forEach(o => o.classList.remove('open'));
+  });
+  
+  console.log('Custom dropdowns initialized');
 }
 
 // Call this function after the page loads
-document.addEventListener('DOMContentLoaded', () => {
-  createCustomDropdowns();
-});
+// document.addEventListener('DOMContentLoaded', () => {
+// });
 
 // Wait for DOM to be fully loaded before initializing
 document.addEventListener('DOMContentLoaded', initializeApp);
