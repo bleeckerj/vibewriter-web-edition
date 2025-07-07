@@ -41,7 +41,7 @@ A web-based creative writing platform inspired by Ghostwriter's "Vibe Mode." Col
 3. Create a `.env` file in the `/server` directory:
    ```
    OPENAI_API_KEY=your_api_key_here
-   PORT=4000
+   PORT=3000
    ```
 
 4. Start the development server:
@@ -49,7 +49,7 @@ A web-based creative writing platform inspired by Ghostwriter's "Vibe Mode." Col
    npm run dev
    ```
 
-5. Open your browser and navigate to `http://localhost:4000`
+5. Open your browser and navigate to `http://localhost:3000`
 
 ## Usage
 

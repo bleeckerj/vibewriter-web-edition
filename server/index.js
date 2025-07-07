@@ -63,9 +63,10 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
-      'http://localhost:4000',
-      'http://127.0.0.1:4000',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
       // Add production origins when deployed
+      'http://146.190.161.27:3000',
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
