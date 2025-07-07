@@ -80,12 +80,12 @@ function centerEditorOnLoad() {
 function updateTurnIndicator(isUser) {
   const indicator = document.getElementById('turn-indicator');
   if (isUser) {
-    indicator.textContent = "Your Turn - Start Typing to Begin Timer";
-    indicator.style.backgroundColor = '#15803d'; // green
+    indicator.textContent = "🧠";
+    // indicator.style.backgroundColor = '#15803d'; // green
     indicator.style.transform = 'translateX(-50%) scale(1.05)'; // Make it slightly larger for user turn
   } else {
-    indicator.textContent = "AI's Turn";
-    indicator.style.backgroundColor = '#3b82f6'; // blue
+    indicator.textContent = "🤖";
+    // indicator.style.backgroundColor = '#3b82f6'; // blue
     indicator.style.transform = 'translateX(-50%) scale(1)'; // Normal size for AI turn
   }
 }
@@ -105,15 +105,29 @@ function initializeEditor() {
         if (transaction && transaction.docChanged) {
           currentContent = editor.getHTML();
           
-          // If it's the user's turn and they haven't started typing yet and timer isn't active
-          if (isUserTurn && !hasUserStartedTyping && !window.timerControls.isActive()) {
-            console.log("First keystroke detected, starting timer");
-            // Start the timer ONLY on first keystroke
-            hasUserStartedTyping = true;
-            window.timerControls.start();
-            // Update indicator to show timer is running
-            const indicator = document.getElementById('turn-indicator');
-            indicator.textContent = "Your Turn - Timer Running";
+          // If it's the user's turn and they haven't started typing yet
+          if (isUserTurn && !hasUserStartedTyping) {
+            console.log("First keystroke detected");
+            
+            // Check if timer controls exist and start timer
+            if (window.timerControls && typeof window.timerControls.isActive === 'function') {
+              // Only start timer if it's not already active
+              if (!window.timerControls.isActive()) {
+                console.log("Starting timer");
+                hasUserStartedTyping = true;
+                window.timerControls.start();
+                
+                // Update indicator to show timer is running
+                const indicator = document.getElementById('turn-indicator');
+                if (indicator) {
+                  indicator.textContent = "🧠";
+                }
+              }
+            } else {
+              // Even without timer, mark that typing has started
+              hasUserStartedTyping = true;
+              console.warn("Timer controls not found or not initialized");
+            }
           }
         }
       },
@@ -123,6 +137,116 @@ function initializeEditor() {
     console.log('Editor initialized successfully');
   } catch (error) {
     console.error('Error initializing editor:', error);
+  }
+}
+
+// Initialize the timer controls
+function initializeTimer() {
+  // Create timerControls object if it doesn't exist
+  if (!window.timerControls) {
+    console.log("Initializing timer controls");
+    
+    const floatingTimer = document.getElementById('floating-timer');
+    
+    if (!floatingTimer) {
+      console.error("Timer element not found");
+      return;
+    }
+    
+    // Get the timer value from the dropdown
+    const timerSelect = document.getElementById('timer-select');
+    let timerDuration = timerSelect ? parseInt(timerSelect.value) : 60; // default to 60 seconds
+    
+    console.log(`Setting initial timer duration to ${timerDuration} seconds`);
+    
+    // Listen for changes to the timer selection
+    if (timerSelect) {
+      timerSelect.addEventListener('change', function() {
+        timerDuration = parseInt(this.value);
+        console.log(`Timer duration changed to ${timerDuration} seconds`);
+        
+        if (window.timerControls) {
+          window.timerControls.setDuration(timerDuration);
+          window.timerControls.reset();
+        } else {
+          // If timer controls don't exist yet, initialize them
+          initializeTimer();
+        }
+      });
+    }
+    
+    // Create timer controls
+    window.timerControls = {
+      duration: timerDuration,
+      remaining: timerDuration,
+      interval: null,
+      isRunning: false,
+      
+      setDuration: function(seconds) {
+        this.duration = seconds;
+        this.remaining = seconds;
+        this.updateDisplay();
+      },
+      
+      start: function() {
+        if (this.isRunning) return;
+        
+        this.isRunning = true;
+        const that = this;
+        
+        // Highlight the timer when running
+        floatingTimer.classList.add('timer-active');
+        
+        // Clear any existing interval
+        if (this.interval) clearInterval(this.interval);
+        
+        const startTime = Date.now();
+        const initialRemaining = this.remaining;
+        
+        this.interval = setInterval(function() {
+          const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+          that.remaining = Math.max(0, initialRemaining - elapsedSeconds);
+          
+          that.updateDisplay();
+          
+          if (that.remaining <= 0) {
+            that.stop();
+            // When timer ends, call endUserTurn to trigger AI response
+            endUserTurn();
+          }
+        }, 100);
+      },
+      
+      stop: function() {
+        if (!this.isRunning) return;
+        
+        this.isRunning = false;
+        clearInterval(this.interval);
+        this.interval = null;
+        floatingTimer.classList.remove('timer-active');
+      },
+      
+      reset: function() {
+        this.stop();
+        this.remaining = this.duration;
+        this.updateDisplay();
+      },
+      
+      isActive: function() {
+        return this.isRunning;
+      },
+      
+      updateDisplay: function() {
+        const minutes = Math.floor(this.remaining / 60);
+        const seconds = this.remaining % 60;
+        floatingTimer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      }
+    };
+    
+    // Initialize the display
+    window.timerControls.reset();
+    
+    console.log("Timer controls initialized with duration:", timerDuration);
   }
 }
 
@@ -137,7 +261,12 @@ async function handleStartButtonClick() {
   isUserTurn = false;
   hasUserStartedTyping = false;
   updateTurnIndicator(false);
-  window.timerControls.reset();
+  
+  // Reset timer if it's initialized
+  if (window.timerControls && typeof window.timerControls.reset === 'function') {
+    window.timerControls.reset();
+  }
+  
   editor.setEditable(false);
   
   // Temporarily set isUserTurn to false to prevent timer from starting during content clearing
@@ -189,7 +318,9 @@ function startUserTurn() {
   document.getElementById('startBtn').textContent = 'YOUR TURN';
   
   // Make sure the timer is reset and showing full time
-  window.timerControls.reset();
+  if (window.timerControls && typeof window.timerControls.reset === 'function') {
+    window.timerControls.reset();
+  }
   
   // Focus the editor
   editor.commands.focus('end');
@@ -216,8 +347,18 @@ async function endUserTurn() {
   updateTurnIndicator(false);
   editor.setEditable(false); // Prevent further editing
   
-  // Ensure timer is fully reset and ready for next user turn
-  window.timerControls.reset();
+  // Ensure timer is stopped and reset
+  if (window.timerControls) {
+    if (typeof window.timerControls.stop === 'function') {
+      console.log("Stopping timer");
+      window.timerControls.stop();
+    }
+    
+    if (typeof window.timerControls.reset === 'function') {
+      console.log("Resetting timer");
+      window.timerControls.reset();
+    }
+  }
   
   // Update button to indicate LLM is working
   const startBtn = document.getElementById('startBtn');
@@ -232,7 +373,7 @@ async function endUserTurn() {
   await getLLMResponse(selectedGenre, currentContent);
   
   // After LLM response, it's user's turn again
-  startBtn.textContent = 'YOUR TURN';
+  startBtn.textContent = 'START';
   startBtn.disabled = false;
 }
 
@@ -240,8 +381,12 @@ async function endUserTurn() {
 async function getLLMResponse(genre, existingContent = '') {
   console.log(`Getting LLM response for ${genre} genre${existingContent ? ' with existing content' : ' for new story'}`);
   
-  // Ensure timer is reset before AI starts typing
-  window.timerControls.reset();
+  // Ensure timer is reset before AI starts typing - check if timer exists first
+  if (window.timerControls && typeof window.timerControls.reset === 'function') {
+    window.timerControls.reset();
+  } else {
+    console.warn('Timer controls not initialized yet');
+  }
   
   // Make sure we're in AI's turn state
   isUserTurn = false;
@@ -720,6 +865,12 @@ function addToConversation(role, content) {
 
 // The main initialization function should be called after DOM is loaded
 function initializeApp() {
+  // First initialize the timer controls (needed by other functions)
+  initializeTimer();
+  
+  // Initialize editor
+  initializeEditor();
+  
   // Initialize editor draggability
   makeEditorDraggable();
   
@@ -729,12 +880,61 @@ function initializeApp() {
   // Initialize style switcher
   initStyleSwitcher();
   
-  // Initialize floating timer
+  // Initialize floating timer draggability
   initFloatingTimer();
   
   // Set initial editor size and position
   centerEditorOnLoad();
+  
+  // Add event listener for START button
+  const startBtn = document.getElementById('startBtn');
+  if (startBtn) {
+    startBtn.addEventListener('click', handleStartButtonClick);
+    console.log('Start button event listener added');
+  } else {
+    console.error('Start button not found');
+  }
+  
+  // Add event listener for genre select change
+  const genreSelect = document.getElementById('genre-select');
+  if (genreSelect) {
+    genreSelect.addEventListener('change', async function() {
+      console.log(`Genre changed to: ${this.value}`);
+      
+      // Reset editor and state
+      editor.commands.setContent('');
+      currentContent = '';
+      
+      // Make the editor not editable during LLM response
+      editor.setEditable(false);
+      
+      // Update button UI - button text stays the same, just disable it
+      const startBtn = document.getElementById('startBtn');
+      startBtn.disabled = true;
+      
+      // Get the selected genre
+      const selectedGenre = this.value;
+      
+      if (selectedGenre === 'freewriting') {
+        // In Free Writing mode, user starts first
+        console.log("Free Writing mode selected - user starts first");
+        startBtn.disabled = false;
+        startUserTurn();
+      } else {
+        // For other genres, get a new prompt from the LLM
+        updateTurnIndicator(false); // Show AI is working
+        await getLLMResponse(selectedGenre);
+        
+        // After LLM response completes, button is re-enabled in getLLMResponse
+        startBtn.disabled = false;
+      }
+    });
+    console.log('Genre select event listener added');
+  } else {
+    console.error('Genre select not found');
+  }
 }
 
 // Wait for DOM to be fully loaded before initializing
 document.addEventListener('DOMContentLoaded', initializeApp);
+// End of file - no more code should be here

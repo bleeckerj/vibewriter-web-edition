@@ -26,9 +26,116 @@
   font-display: swap;
 }
 
+/* 3270 Font Family */
+@font-face {
+  font-family: '3270';
+  src: url('./fonts/3270/3270NerdFont-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '3270';
+  src: url('./fonts/3270/3270NerdFont-Condensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '3270';
+  src: url('./fonts/3270/3270NerdFont-SemiCondensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '3270 Mono';
+  src: url('./fonts/3270/3270NerdFontMono-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '3270 Mono';
+  src: url('./fonts/3270/3270NerdFontMono-Condensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  font-stretch: condensed;
+}
+
+@font-face {
+  font-family: '3270 Mono';
+  src: url('./fonts/3270/3270NerdFontMono-SemiCondensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  font-stretch: semi-condensed;
+}
+
+@font-face {
+  font-family: '3270 Propo';
+  src: url('./fonts/3270/3270NerdFontPropo-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '3270 Propo';
+  src: url('./fonts/3270/3270NerdFontPropo-Condensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  font-stretch: condensed;
+}
+
+@font-face {
+  font-family: '3270 Propo';
+  src: url('./fonts/3270/3270NerdFontPropo-SemiCondensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  font-stretch: semi-condensed;
+}
+
+
+@font-face {
+  font-family: '3270 Mono';
+  src: url('./fonts/3270/3270NerdFontMono-Condensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-stretch: condensed;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '3270';
+  src: url('./fonts/3270/3270NerdFont-SemiCondensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-stretch: semi-condensed;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '3270 Mono';
+  src: url('./fonts/3270/3270NerdFontMono-SemiCondensed.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-stretch: semi-condensed;
+  font-display: swap;
+}
+
 /* Font variables */
 :root {
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-3270: '3270', 'JetBrains Mono', monospace;
+  --font-3270-mono: '3270 Mono', 'JetBrains Mono', monospace;
 }
 
 /* Top menu bar */
@@ -278,6 +385,39 @@ h1 {
   animation: timer-warning 0.8s ease-in-out infinite alternate;
 }
 
+/* Timer styles */
+.floating-timer {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: move;
+  user-select: none;
+  z-index: 1000;
+  transition: all 0.2s;
+}
+
+.timer-active {
+  background-color: rgba(0, 140, 0, 0.7);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}
+
 #startBtn {
   padding: 10px 20px;
   font-size: 1rem;
@@ -322,16 +462,16 @@ h1 {
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: #3b82f6;
+  /* background: #3b82f6; */
   color: white;
   padding: 6px 16px;
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 2rem;
   font-family: var(--font-mono);
   font-weight: 600;
   z-index: 20;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  /* box-shadow: 0 2px 8px rgba(0,0,0,0.15); */
   letter-spacing: 0.05em;
 }
 

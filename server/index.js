@@ -36,7 +36,17 @@ const logConversation = (req, data) => {
   };
   
   accessLogStream.write(JSON.stringify(logEntry) + '\n');
-  console.log(`Logged conversation at ${timestamp} from IP: ${ip}`);
+  
+  // Enhanced console logging
+  console.log(`\n\x1b[36m%s\x1b[0m`, `📝 Logged conversation at ${timestamp} from IP: ${ip}`);
+  if (data.settings) {
+    console.log(`\x1b[36m%s\x1b[0m`, `⚙️ Settings: ${JSON.stringify(data.settings)}`);
+  }
+  if (data.conversation && data.conversation.length) {
+    console.log(`\x1b[32m%s\x1b[0m`, `💬 User: ${data.conversation.find(msg => msg.role === 'user')?.content.substring(0, 50)}...`);
+    console.log(`\x1b[34m%s\x1b[0m`, `🤖 AI: ${data.conversation.find(msg => msg.role === 'assistant')?.content.substring(0, 50)}...`);
+  }
+  console.log('\x1b[36m%s\x1b[0m', `──────────────────────────────────────────────────────`);
 };
 
 // Check if OpenAI API key is set
@@ -222,6 +232,16 @@ app.get('/api/admin/logs', (req, res) => {
     console.error('Error retrieving logs:', err.message);
     res.status(500).json({ error: 'Failed to retrieve logs' });
   }
+});
+
+// Admin route
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../vanilla/admin.html'));
+});
+
+// Privacy policy route
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, '../vanilla/privacy.html'));
 });
 
 // Fallback route for SPA
