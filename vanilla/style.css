@@ -623,6 +623,63 @@ h1 {
   transition: none; /* Remove transition to make resizing smoother */
 }
 
+/* Custom dropdown styling */
+.custom-select-container {
+  position: relative;
+  display: inline-block;
+}
+
+.custom-select-trigger {
+  font-family: '3270', monospace !important;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border: 1px solid #555;
+  background-color: white;
+  color: black;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-width: 100px;
+}
+
+.custom-select-trigger::after {
+  content: "▼";
+  font-size: 0.7rem;
+  margin-left: 8px;
+}
+
+.custom-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #555;
+  border-top: none;
+  z-index: 999;
+  display: none;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.custom-options.open {
+  display: block;
+}
+
+.custom-option {
+  padding: 4px 8px;
+  cursor: pointer;
+  font-family: '3270', monospace !important;
+  font-size: 0.85rem;
+  color: black;
+}
+
+.custom-option:hover,
+.custom-option.selected {
+  background-color: #f0f0f0;
+}
+
 /* Custom cursor styles for resize areas */
 .resize-handle-e:hover,
 .resize-handle-s:hover,

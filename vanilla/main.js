@@ -933,6 +933,81 @@ function initializeApp() {
   }
 }
 
+// Function to create custom select dropdowns
+function createCustomDropdowns() {
+  // Find all select elements
+  const selects = document.querySelectorAll('select');
+  
+  selects.forEach(select => {
+    // Create container
+    const container = document.createElement('div');
+    container.className = 'custom-select-container';
+    select.parentNode.insertBefore(container, select);
+    
+    // Create trigger element
+    const trigger = document.createElement('div');
+    trigger.className = 'custom-select-trigger';
+    trigger.textContent = select.options[select.selectedIndex].textContent;
+    container.appendChild(trigger);
+    
+    // Create options container
+    const options = document.createElement('div');
+    options.className = 'custom-options';
+    container.appendChild(options);
+    
+    // Hide original select
+    select.style.display = 'none';
+    container.appendChild(select);
+    
+    // Add options
+    Array.from(select.options).forEach(option => {
+      const customOption = document.createElement('div');
+      customOption.className = 'custom-option';
+      customOption.textContent = option.textContent;
+      customOption.dataset.value = option.value;
+      if (option.selected) customOption.classList.add('selected');
+      
+      customOption.addEventListener('click', () => {
+        // Update original select value
+        select.value = customOption.dataset.value;
+        
+        // Update trigger text
+        trigger.textContent = customOption.textContent;
+        
+        // Update selected option
+        options.querySelector('.selected')?.classList.remove('selected');
+        customOption.classList.add('selected');
+        
+        // Close dropdown
+        options.classList.remove('open');
+        
+        // Trigger change event on the original select
+        const event = new Event('change');
+        select.dispatchEvent(event);
+      });
+      
+      options.appendChild(customOption);
+    });
+    
+    // Toggle dropdown on trigger click
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      options.classList.toggle('open');
+    });
+    
+    // Close all dropdowns when clicking outside
+    document.addEventListener('click', () => {
+      const openOptions = document.querySelectorAll('.custom-options.open');
+      openOptions.forEach(o => o.classList.remove('open'));
+    });
+  });
+}
+
+// Call this function after the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  createCustomDropdowns();
+});
+
 // Wait for DOM to be fully loaded before initializing
 document.addEventListener('DOMContentLoaded', initializeApp);
 // End of file - no more code should be here
