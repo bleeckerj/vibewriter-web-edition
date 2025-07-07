@@ -421,27 +421,67 @@
         }
 
         try {
-          // Create base64 token
-          authToken = btoa(`${username}:${password}`);
+          // Show loading state
+          const submitBtn = document.querySelector('#login-form button[type="submit"]');
+          const originalText = submitBtn.textContent;
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Logging in...';
+          loginError.style.display = 'none';
           
-          // Test auth with API call
-          const response = await fetch('/api/admin/logs', {
+          console.log('Attempting login with username:', username);
+          
+          // Use the new JWT login endpoint
+          const response = await fetch('/api/admin/login', {
+            method: 'POST',
             headers: {
-              'Authorization': `Basic ${authToken}`
-            }
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
           });
 
-          if (!response.ok) {
-            throw new Error('Authentication failed');
+          console.log('Login response status:', response.status);
+          
+          // Reset button state
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+
+          // Get the full response body for debugging
+          const responseText = await response.text();
+          console.log('Response text:', responseText);
+          
+          // Try to parse as JSON
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse JSON response:', parseError);
+            throw new Error(`Server returned invalid JSON: ${responseText.substring(0, 100)}...`);
           }
 
-          // Store token and show log viewer
+          // Check for error in the response
+          if (!response.ok) {
+            throw new Error(data.error || `Server error: ${response.status}`);
+          }
+          
+          if (!data.token) {
+            throw new Error('No token received from server');
+          }
+
+          console.log('Login successful, token received');
+          
+          // Store JWT token
+          authToken = data.token;
           localStorage.setItem('ghostwriterAuthToken', authToken);
+          
+          // Show log viewer
           loginScreen.style.display = 'none';
           logViewer.style.display = 'block';
+          
+          // Fetch data
           fetchLogs();
+          fetchOpenAIUsage();
         } catch (err) {
-          showError('Authentication failed: Invalid credentials');
+          showError('Authentication failed: ' + err.message);
           console.error('Login error:', err);
           authToken = null;
           localStorage.removeItem('ghostwriterAuthToken');
@@ -484,11 +524,15 @@
         try {
           logsList.innerHTML = '<div class="loading">Loading logs...</div>';
           
+          console.log('Fetching logs with token');
+          
           const response = await fetch('/api/admin/logs', {
             headers: {
-              'Authorization': `Basic ${authToken}`
+              'Authorization': `Bearer ${authToken}`
             }
           });
+
+          console.log('Logs response status:', response.status);
 
           if (!response.ok) {
             if (response.status === 401) {
@@ -629,13 +673,25 @@
       async function fetchOpenAIUsage() {
         try {
           usageData.innerHTML = '<div class="loading">Loading OpenAI usage data...</div>';
-          console.log('Fetching OpenAI usage data...');
+          console.log('Fetching OpenAI usage data with token');
           
-          // Simple fetch without additional headers
-          const response = await fetch('/api/admin/openai-usage');
+          const response = await fetch('/api/admin/openai-usage', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
           
-          console.log('Response status:', response.status);
+          console.log('Usage response status:', response.status);
           
+          if (!response.status === 401) {
+            // Handle unauthorized - clear token and show login
+            localStorage.removeItem('ghostwriterAuthToken');
+            loginScreen.style.display = 'block';
+            logViewer.style.display = 'none';
+            showError('Session expired. Please log in again.');
+            return;
+          }
+
           // Check if the response is valid
           if (!response.ok) {
             throw new Error(`Server returned ${response.status}: ${response.statusText}`);
@@ -662,109 +718,156 @@
         }
       }
       
-      // Display usage data
+      // Update your displayUsageData function to handle 5 days properly:
       function displayUsageData(data) {
-        if (data.error) {
-          usageData.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
+        usageData.innerHTML = '';
+        
+        // Add a title with correct period
+        let heading = document.createElement('h2');
+        heading.textContent = `OpenAI API Usage (Last 5 Days)`;
+        if (data.mockData) {
+          heading.textContent += ' - Using Mock Data';
+        }
+        usageData.appendChild(heading);
+        
+        // Add refresh button
+        let refreshButton = document.createElement('button');
+        refreshButton.textContent = 'Refresh Data';
+        refreshButton.className = 'refresh-btn';
+        refreshButton.addEventListener('click', () => fetchOpenAIUsage(true));
+        usageData.appendChild(refreshButton);
+        
+        // Check if we have any meaningful data
+        if (!data.dailyData || data.dailyData.length === 0) {
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'error-message';
+          errorDiv.innerHTML = data.error || 'No API usage data available from OpenAI.';
+          
+          // Add more detailed explanation
+          const helpText = document.createElement('p');
+          helpText.textContent = 'This could be due to no API usage in the last 5 days, or an error connecting to the OpenAI usage API.';
+          errorDiv.appendChild(helpText);
+          
+          usageData.appendChild(errorDiv);
           return;
         }
-        
-        if (!data.data || data.data.length === 0) {
-          usageData.innerHTML = `<div class="info-message">No usage data found for the last 30 days.</div>`;
-          return;
-        }
-        
-        let html = '';
-        
-        // Calculate totals
-        let totalTokensUsed = 0;
-        let totalCost = 0;
-        const usageByModel = {};
-        
-        // Process data
-        data.data.forEach(item => {
-          const modelName = item.snapshot_id;
-          const tokensUsed = item.n_context_tokens_total + item.n_generated_tokens_total;
-          // Estimate cost based on model - these are rough estimates
-          let costPer1000Tokens = 0.01; // Default
-          
-          if (modelName.includes('gpt-4')) {
-            if (modelName.includes('turbo')) {
-              costPer1000Tokens = 0.01; // GPT-4 Turbo
-            } else if (modelName.includes('vision')) {
-              costPer1000Tokens = 0.01; // GPT-4 Vision
-            } else {
-              costPer1000Tokens = 0.03; // Regular GPT-4
-            }
-          } else if (modelName.includes('gpt-3.5')) {
-            costPer1000Tokens = 0.0015; // GPT-3.5
-          }
-          
-          const itemCost = (tokensUsed / 1000) * costPer1000Tokens;
-          
-          // Update totals
-          totalTokensUsed += tokensUsed;
-          totalCost += itemCost;
-          
-          // Track usage by model
-          if (!usageByModel[modelName]) {
-            usageByModel[modelName] = { tokens: 0, cost: 0 };
-          }
-          usageByModel[modelName].tokens += tokensUsed;
-          usageByModel[modelName].cost += itemCost;
-        });
         
         // Create summary section
-        html += `
-          <div class="usage-stat">
-            <h3>30-Day Summary</h3>
-            <div class="stat-grid">
-              <div class="stat-item">
-                <span>Total Tokens:</span>
-                <span class="stat-value">${totalTokensUsed.toLocaleString()}</span>
-              </div>
-              <div class="stat-item">
-                <span>Estimated Cost:</span>
-                <span class="stat-value token-cost">$${totalCost.toFixed(2)}</span>
-              </div>
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'usage-stat';
+        summaryDiv.innerHTML = `
+          <h3>5-Day Summary</h3>
+          <div class="stat-grid">
+            <div class="stat-item">
+              <span>Total Requests:</span>
+              <span class="stat-value">${data.totalRequests?.toLocaleString() || '0'}</span>
+            </div>
+            <div class="stat-item">
+              <span>Total Tokens:</span>
+              <span class="stat-value">${data.totalTokens?.toLocaleString() || '0'}</span>
+            </div>
+            <div class="stat-item">
+              <span>Prompt Tokens:</span>
+              <span class="stat-value">${data.totalPromptTokens?.toLocaleString() || '0'}</span>
+            </div>
+            <div class="stat-item">
+              <span>Completion Tokens:</span>
+              <span class="stat-value">${data.totalCompletionTokens?.toLocaleString() || '0'}</span>
+            </div>
+            <div class="stat-item">
+              <span>Estimated Cost:</span>
+              <span class="stat-value token-cost">$${(data.totalCost || 0).toFixed(2)}</span>
             </div>
           </div>
         `;
+        usageData.appendChild(summaryDiv);
         
         // Model-specific usage
-        Object.entries(usageByModel).forEach(([model, usage]) => {
-          html += `
-            <div class="usage-stat">
-              <h3>${model.replace('ft:gpt-3.5-turbo', 'GPT-3.5').replace('ft:gpt-4', 'GPT-4')}</h3>
+        if (data.byModel && Object.keys(data.byModel).length > 0) {
+          const modelTitle = document.createElement('h3');
+          modelTitle.textContent = 'Usage by Model';
+          usageData.appendChild(modelTitle);
+          
+          Object.entries(data.byModel).forEach(([model, usage]) => {
+            const modelDiv = document.createElement('div');
+            modelDiv.className = 'usage-stat';
+            modelDiv.innerHTML = `
+              <h4>${formatModelName(model)}</h4>
               <div class="stat-grid">
                 <div class="stat-item">
-                  <span>Tokens:</span>
-                  <span class="stat-value">${usage.tokens.toLocaleString()}</span>
+                  <span>Requests:</span>
+                  <span class="stat-value">${usage.requests?.toLocaleString() || '0'}</span>
+                </div>
+                <div class="stat-item">
+                  <span>Total Tokens:</span>
+                  <span class="stat-value">${(usage.promptTokens + usage.completionTokens).toLocaleString()}</span>
                 </div>
                 <div class="stat-item">
                   <span>Cost:</span>
-                  <span class="stat-value token-cost">$${usage.cost.toFixed(2)}</span>
+                  <span class="stat-value token-cost">$${(usage.cost || 0).toFixed(2)}</span>
                 </div>
               </div>
-            </div>
-          `;
-        });
+            `;
+            usageData.appendChild(modelDiv);
+          });
+        }
         
-        // Usage chart placeholder - could be implemented with a charting library
-        html += `
-          <div class="usage-chart">
-            <h3>Daily Usage</h3>
-            <p>Daily usage chart would be displayed here. Consider integrating a charting library like Chart.js.</p>
-          </div>
-        `;
+        // Daily breakdown
+        if (data.dailyData && data.dailyData.length > 0) {
+          const dailyTitle = document.createElement('h3');
+          dailyTitle.textContent = 'Daily Usage';
+          usageData.appendChild(dailyTitle);
+          
+          data.dailyData.forEach(day => {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'usage-stat';
+            dayDiv.innerHTML = `
+              <h4>${formatDate(day.date)}</h4>
+              <div class="stat-grid">
+                <div class="stat-item">
+                  <span>Requests:</span>
+                  <span class="stat-value">${day.requests?.toLocaleString() || '0'}</span>
+                </div>
+                <div class="stat-item">
+                  <span>Total Tokens:</span>
+                  <span class="stat-value">${day.totalTokens?.toLocaleString() || '0'}</span>
+                </div>
+                <div class="stat-item">
+                  <span>Cost:</span>
+                  <span class="stat-value token-cost">$${(day.cost || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            `;
+            usageData.appendChild(dayDiv);
+          });
+        }
         
-        // Update the UI
-        usageData.innerHTML = html;
-        
-        // Update summary
+        // Update summary in the right panel
         usageSummary.innerHTML = `
-          <p>In the last 30 days, you've used <strong>${totalTokensUsed.toLocaleString()}</strong> tokens at an estimated cost of <strong class="token-cost">$${totalCost.toFixed(2)}</strong>.</p>
+          <p>In the last 5 days, you've used <strong>${data.totalTokens?.toLocaleString() || '0'}</strong> tokens 
+          at an estimated cost of <strong class="token-cost">$${(data.totalCost || 0).toFixed(2)}</strong>.</p>
+          <p>Data last updated: ${formatDateTime(data.cachedAt || new Date())}</p>
         `;
+      }
+
+      // Helper functions
+      function formatModelName(modelName) {
+        return modelName
+          .replace('gpt-4.1-nano-2025-04-14', 'GPT-4.1 Nano')
+          .replace('gpt-4.1-mini-2025-04-14', 'GPT-4.1 Mini')
+          .replace('gpt-4.1-2025-04-14', 'GPT-4.1')
+          .replace('ft:gpt-3.5-turbo', 'GPT-3.5')
+          .replace('ft:gpt-4', 'GPT-4');
+      }
+
+      function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString();
+      }
+
+      function formatDateTime(dateTimeStr) {
+        const date = new Date(dateTimeStr);
+        return date.toLocaleString();
       }
 
       // Tab navigation

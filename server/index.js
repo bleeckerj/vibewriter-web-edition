@@ -1,4 +1,4 @@
-require('dotenv').config();
+//require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -6,6 +6,31 @@ const { OpenAI } = require('openai');
 const fs = require('fs');
 const rfs = require('rotating-file-stream');
 const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+// Check for required environment variables
+const requiredEnvVars = ['ADMIN_USERNAME', 'ADMIN_PASSWORD', 'JWT_SECRET'];
+//console.log('Required environment variables:', requiredEnvVars.join(', '));
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+//console.log('Process environment variables:', Object.keys(process.env).join(', '));
+if (missingEnvVars.length > 0) {
+  console.warn('\x1b[33m%s\x1b[0m', `Warning: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.warn('\x1b[33m%s\x1b[0m', 'Make sure these are set in your .env file');
+  
+  // Provide default values only in development
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('\x1b[33m%s\x1b[0m', 'Using default values for development only');
+    
+    if (!process.env.ADMIN_USERNAME) process.env.ADMIN_USERNAME = 'admin';
+    if (!process.env.ADMIN_PASSWORD) process.env.ADMIN_PASSWORD = 'password';
+    if (!process.env.JWT_SECRET) process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  } else {
+    // In production, exit if credentials are missing
+    console.error('\x1b[31m%s\x1b[0m', 'Cannot start in production without required environment variables');
+    process.exit(1);
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -147,6 +172,12 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Initialize cache for OpenAI usage data
+let usageCache = {
+  data: null,
+  timestamp: 0
+};
+
 // Apply the general API rate limiter to all API routes
 app.use('/api/', apiLimiter);
 
@@ -253,25 +284,11 @@ app.post('/api/log', (req, res) => {
   }
 });
 
-// Admin endpoint to view logs (requires authentication)
-app.get('/api/admin/logs', (req, res) => {
-  // Simple basic auth for demo purposes - in production use proper authentication
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic');
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  
-  // Base64 decode credentials
-  const base64Credentials = authHeader.split(' ')[1];
-  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-  const [username, password] = credentials.split(':');
-  
-  // Check credentials (in production, use environment variables or a secure method)
-  if (username !== 'won46' || password !== 'strap-shove-voila-ferret') {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  
+// Add this BEFORE your admin routes
+console.log('Setting up secure admin routes with JWT authentication');
+
+// Admin endpoint to view logs
+app.get('/api/admin/logs', secureAdminRoute, (req, res) => {
   try {
     // Read the log file
     fs.readFile(path.join(logsDir, 'ghostwriter-access.log'), 'utf8', (err, data) => {
@@ -296,34 +313,8 @@ app.get('/api/admin/logs', (req, res) => {
   }
 });
 
-// Admin route
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '../vanilla/admin.html'));
-});
-
-// Privacy policy route
-app.get('/privacy', (req, res) => {
-  res.sendFile(path.join(__dirname, '../vanilla/privacy.html'));
-});
-
-
-// Add this API endpoint to view rate limit stats
-app.get('/api/admin/ratelimits', (req, res) => {
-  // Simple basic auth - same as your existing auth
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic');
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  
-  const base64Credentials = authHeader.split(' ')[1];
-  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-  const [username, password] = credentials.split(':');
-  
-  if (username !== 'won46' || password !== 'strap-shove-voila-ferret') {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  
+// Add API endpoint to view rate limit stats
+app.get('/api/admin/ratelimits', secureAdminRoute, (req, res) => {
   // Get current time for reference
   const now = new Date();
   
@@ -339,11 +330,8 @@ app.get('/api/admin/ratelimits', (req, res) => {
       llm: llmLimiter.max + " requests per window",
       admin: adminLimiter.max + " requests per window"
     },
-    // Include server time for reference
     serverTime: now.toISOString(),
-    // Add any blocked IPs if you're tracking them
-    blockedIPs: [], // This would need additional code to track blocked IPs
-    // Add some stats about total requests (optional - these need to be implemented separately)
+    blockedIPs: [], 
     stats: {
       totalRequests: "Stats not implemented yet",
       blockedRequests: "Stats not implemented yet"
@@ -351,98 +339,80 @@ app.get('/api/admin/ratelimits', (req, res) => {
   });
 });
 
-
-
-// Replace your current /api/admin/openai-usage endpoint with this simpler version
-app.get('/api/admin/openai-usage', async (req, res) => {
-  // Skip authentication for now to simplify debugging
-  // We'll add it back later when everything else works
-  
+// OpenAI usage endpoint
+app.get('/api/admin/openai-usage', secureAdminRoute, async (req, res) => {
   try {
-    console.log("Fetching OpenAI usage data without auth check...");
-    const usageData = await getOpenAIUsage();
-    console.log("Usage data retrieved:", JSON.stringify(usageData).substring(0, 200) + "...");
+    // Check if cache is still valid (15 minutes)
+    const now = Date.now();
+    const cacheAge = now - (usageCache?.timestamp || 0);
+    const cacheValidForMs = 15 * 60 * 1000; // 15 minutes
+    
+    // Force refresh if requested
+    const forceRefresh = req.query.refresh === 'true';
+    
+    if (usageCache?.data && cacheAge < cacheValidForMs && !forceRefresh) {
+      console.log(`Using cached OpenAI usage data (${Math.round(cacheAge/1000)}s old)`);
+      return res.json(usageCache.data);
+    }
+    
+    console.log("Fetching fresh OpenAI usage data...");
+    const usageData = await getLast5DaysUsage();
+    
+    // Add detailed debug information
+    console.log("Usage data structure:", {
+      mockData: usageData.mockData,
+      totalRequests: usageData.totalRequests,
+      totalTokens: usageData.totalTokens,
+      dailyDataCount: usageData.dailyData?.length || 0,
+      byModelCount: Object.keys(usageData.byModel || {}).length
+    });
+    
+    // Check if data is empty and log
+    if (!usageData.dailyData || usageData.dailyData.length === 0) {
+      console.log("WARNING: No daily data found in the API response");
+    }
+    
+    // Update cache
+    usageCache = {
+      data: usageData,
+      timestamp: now
+    };
+    
     res.json(usageData);
   } catch (error) {
     console.error("Error in usage endpoint:", error);
+    
+    // If we have cached data, return it even if it's expired
+    if (usageCache.data) {
+      console.log("Returning expired cache due to error");
+      return res.json({
+        ...usageCache.data,
+        error: error.message,
+        usingExpiredCache: true
+      });
+    }
+    
     res.status(500).json({ error: error.message });
   }
 });
 
+// Admin route
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../vanilla/admin.html'));
+});
 
-// Updated function to get OpenAI usage with date parameter
-async function getOpenAIUsage(dateStr) {
-  try {
-    const fetch = require('node-fetch');
-    
-    // Use provided date or default to today
-    const date = dateStr || new Date().toISOString().split('T')[0];
-    
-    console.log(`Fetching OpenAI usage for date: ${date}`);
-    
-    // Make request to OpenAI API with the correct endpoint
-    const response = await fetch(
-      `https://api.openai.com/v1/usage?date=${date}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-      }
-    );
-    
-    console.log(`OpenAI API response status: ${response.status}`);
-    
-    // Get response as text first for debugging
-    const responseText = await response.text();
-    console.log(`Response body preview: ${responseText.substring(0, 200)}...`);
-    
-    // Check if it's HTML
-    if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
-      console.error('Received HTML instead of JSON');
-      throw new Error('API returned HTML instead of JSON');
-    }
-    
-    // Parse as JSON
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (err) {
-      console.error('JSON parse error:', err);
-      throw new Error(`Failed to parse response as JSON: ${err.message}`);
-    }
-    
-    // Return with a predictable structure
-    return {
-      date: date,
-      data: data.data || [],
-      total_tokens: 0, // Will be calculated in displayUsageData
-      mockData: false
-    };
-  } catch (error) {
-    console.error(`Error fetching OpenAI usage for date ${dateStr}:`, error);
-    
-    // Return mock data
-    return { 
-      date: dateStr,
-      error: error.message,
-      mockData: true,
-      data: [
-        {
-          aggregate_timestamp: new Date().toISOString(),
-          n_requests: 5,
-          operation: "completion",
-          snapshot_id: process.env.OPENAI_MODEL || "gpt-4.1-nano-2025-04-14",
-          n_context_tokens_total: 500,
-          n_generated_tokens_total: 250
-        }
-      ]
-    };
-  }
-}
+// Privacy policy route
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, '../vanilla/privacy.html'));
+});
 
-// New function to get the last 30 days of usage
-async function getLast30DaysUsage() {
+// Fallback route for SPA
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../vanilla/index.html'));
+});
+
+// Modified function to get the last 5 days of usage
+async function getLast5DaysUsage() {
   const fetch = require('node-fetch');
   
   // Array to store results
@@ -454,30 +424,59 @@ async function getLast30DaysUsage() {
     totalTokens: 0,
     totalCost: 0,
     byModel: {},
-    mockData: false
+    mockData: false,
+    cachedAt: new Date().toISOString()
   };
   
-  // Get dates for the last 30 days
-  const dates = [];
-  for (let i = 0; i < 30; i++) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    dates.push(date.toISOString().split('T')[0]);
-  }
-  
-  console.log(`Fetching OpenAI usage for the last 30 days: ${dates[29]} to ${dates[0]}`);
-  
-  // Array to track if we had any successful API calls
-  let hadSuccessfulCall = false;
-  
-  // Fetch data for each day
-  for (const date of dates) {
-    try {
-      const dayData = await getOpenAIUsage(date);
-      
-      // Only add if there's actual data
-      if (dayData.data && dayData.data.length > 0) {
-        hadSuccessfulCall = true;
+  try {
+    // Calculate start and end time for the 5-day period
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 5);
+    
+    const startTime = Math.floor(startDate.getTime() / 1000);
+    const endTime = Math.floor(endDate.getTime() / 1000);
+    
+    console.log(`Fetching OpenAI usage for date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    
+    // Build URL with query parameters
+    const url = new URL('https://api.openai.com/v1/organization/usage/completions');
+    url.searchParams.append('start_time', startTime);
+    url.searchParams.append('end_time', endTime);
+    url.searchParams.append('bucket_width', '1d'); // Daily buckets
+    
+    if (process.env.OPENAI_PROJECT_ID) {
+      // This is actually a project ID, not an API key ID
+      url.searchParams.append('project_ids', process.env.OPENAI_PROJECT_ID);
+    }
+    console.log(`Making request to: ${url.toString()}`);
+    
+    // Make a single API call for the entire date range
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_ADMIN_KEY || process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log(`OpenAI API response status: ${response.status}`);
+    
+    // Get the response as text first for debugging
+    const responseText = await response.text();
+    console.log(`Response (first 200 chars): ${responseText.substring(0, 200)}...`);
+    
+    if (response.status !== 200) {
+      throw new Error(`API returned status ${response.status}: ${responseText.substring(0, 200)}`);
+    }
+    
+    // Parse as JSON
+    const data = JSON.parse(responseText);
+    
+    // Process each bucket (day) in the response
+    if (data.data && data.data.length > 0) {
+      data.data.forEach(bucket => {
+        // Get the date for this bucket
+        const bucketDate = new Date(bucket.start_time * 1000).toISOString().split('T')[0];
         
         // Calculate totals for this day
         let dayPromptTokens = 0;
@@ -485,33 +484,34 @@ async function getLast30DaysUsage() {
         let dayRequests = 0;
         let dayCost = 0;
         
-        // Process each entry
-        dayData.data.forEach(item => {
-          const promptTokens = item.n_context_tokens_total || 0;
-          const completionTokens = item.n_generated_tokens_total || 0;
-          const requests = item.n_requests || 0;
-          
-          // Update day totals
-          dayPromptTokens += promptTokens;
-          dayCompletionTokens += completionTokens;
-          dayRequests += requests;
-          
-          // Update global totals
-          results.totalPromptTokens += promptTokens;
-          results.totalCompletionTokens += completionTokens;
-          results.totalRequests += requests;
-          
-          // Calculate cost based on model
-          let promptCost = 0;
-          let completionCost = 0;
-          const model = item.snapshot_id;
-          
-          if (model.includes('gpt-4')) {
-            if (model.includes('nano')) {
-              // GPT-4.1 nano pricing
-              promptCost = (promptTokens / 1000000) * 0.1; // $0.100 per 1M tokens
-              completionCost = (completionTokens / 1000000) * 0.4; // $0.400 per 1M tokens
-            } else if (model.includes('mini')) {
+        if (bucket.results && bucket.results.length > 0) {
+          bucket.results.forEach(result => {
+            // Extract values using the new structure
+            const promptTokens = result.input_tokens || 0;
+            const completionTokens = result.output_tokens || 0;
+            const requests = result.num_model_requests || 0;
+            const model = result.model || 'unknown';
+            
+            // Update day totals
+            dayPromptTokens += promptTokens;
+            dayCompletionTokens += completionTokens;
+            dayRequests += requests;
+            
+            // Update global totals
+            results.totalPromptTokens += promptTokens;
+            results.totalCompletionTokens += completionTokens;
+            results.totalRequests += requests;
+            
+            // Calculate cost based on model
+            let promptCost = 0;
+            let completionCost = 0;
+            
+            if (model.includes('gpt-4')) {
+              if (model.includes('nano')) {
+                // GPT-4.1 nano pricing
+                promptCost = (promptTokens / 1000000) * 0.1; // $0.100 per 1M tokens
+                completionCost = (completionTokens / 1000000) * 0.4; // $0.400 per 1M tokens
+              } else if (model.includes('mini')) {
                 // NEW: GPT-4.1 mini pricing
                 promptCost = (promptTokens / 1000000) * 0.4; // $0.40 per 1M tokens
                 completionCost = (completionTokens / 1000000) * 1.6; // $1.60 per 1M tokens
@@ -534,176 +534,251 @@ async function getLast30DaysUsage() {
             results.totalCost += promptCost + completionCost;
             
             // Track by model
-            if (!results.byModel[model]) {
-              results.byModel[model] = {
-                requests: 0,
-                promptTokens: 0,
-                completionTokens: 0,
-                cost: 0
-              };
+            if (model) {
+              if (!results.byModel[model]) {
+                results.byModel[model] = {
+                  requests: 0,
+                  promptTokens: 0,
+                  completionTokens: 0,
+                  cost: 0
+                };
+              }
+              
+              results.byModel[model].requests += requests;
+              results.byModel[model].promptTokens += promptTokens;
+              results.byModel[model].completionTokens += completionTokens;
+              results.byModel[model].cost += (promptCost + completionCost);
             }
-            
-            results.byModel[model].requests += requests;
-            results.byModel[model].promptTokens += promptTokens;
-            results.byModel[model].completionTokens += completionTokens;
-            results.byModel[model].cost += (promptCost + completionCost);
-          });
-          
-          // Add summarized day data
-          results.dailyData.push({
-            date,
-            requests: dayRequests,
-            promptTokens: dayPromptTokens,
-            completionTokens: dayCompletionTokens,
-            totalTokens: dayPromptTokens + dayCompletionTokens,
-            cost: dayCost,
-            rawData: dayData.data
           });
         }
-      } catch (error) {
-        console.error(`Error fetching data for ${date}:`, error);
-        // Continue with next date even if this one fails
-      }
+        
+        // Add summarized day data
+        results.dailyData.push({
+          date: bucketDate,
+          requests: dayRequests,
+          promptTokens: dayPromptTokens,
+          completionTokens: dayCompletionTokens,
+          totalTokens: dayPromptTokens + dayCompletionTokens,
+          cost: dayCost
+        });
+      });
+      
+      // Sort daily data by date in descending order (newest first)
+      results.dailyData.sort((a, b) => new Date(b.date) - new Date(a.date));
     }
     
     // Calculate total tokens
     results.totalTokens = results.totalPromptTokens + results.totalCompletionTokens;
     
-    // If no successful calls were made, set mockData flag
-    if (!hadSuccessfulCall) {
-      results.mockData = true;
-      console.log('No successful API calls, using mock data');
-      
-      // Generate mock data for the last 30 days
-      results.dailyData = dates.map(date => {
-        const randomRequests = Math.floor(Math.random() * 10) + 1;
-        const randomPromptTokens = Math.floor(Math.random() * 1000) + 100;
-        const randomCompletionTokens = Math.floor(Math.random() * 500) + 50;
-        
-        return {
-          date,
-          requests: randomRequests,
-          promptTokens: randomPromptTokens,
-          completionTokens: randomCompletionTokens,
-          totalTokens: randomPromptTokens + randomCompletionTokens,
-          cost: ((randomPromptTokens / 1000) * 0.01) + ((randomCompletionTokens / 1000) * 0.03),
-          mockData: true
-        };
-      });
-      
-      // Update totals with mock data
-      results.totalRequests = results.dailyData.reduce((sum, day) => sum + day.requests, 0);
-      results.totalPromptTokens = results.dailyData.reduce((sum, day) => sum + day.promptTokens, 0);
-      results.totalCompletionTokens = results.dailyData.reduce((sum, day) => sum + day.completionTokens, 0);
-      results.totalTokens = results.totalPromptTokens + results.totalCompletionTokens;
-      results.totalCost = results.dailyData.reduce((sum, day) => sum + day.cost, 0);
-      
-      // Add mock model data
-      results.byModel = {
-        'gpt-4.1-nano-2025-04-14': {
-          requests: results.totalRequests,
-          promptTokens: results.totalPromptTokens,
-          completionTokens: results.totalCompletionTokens,
-          cost: results.totalCost
-        }
-      };
-    }
+    // Add isRealData flag
+    results.isRealData = true;
     
     return results;
+    
+  } catch (error) {
+    console.error('Error fetching usage data:', error);
+    
+    // Return empty results with error information
+    return {
+      error: `Could not retrieve usage data: ${error.message}`,
+      dailyData: [],
+      totalRequests: 0,
+      totalPromptTokens: 0,
+      totalCompletionTokens: 0,
+      totalTokens: 0,
+      totalCost: 0,
+      byModel: {},
+      isEmptyResult: true,
+      cachedAt: new Date().toISOString()
+    };
+  }
+}
+
+
+// Update your getOpenAIUsage function
+async function getOpenAIUsage(date) {
+  try {
+    const fetch = require('node-fetch');
+    
+    console.log(`Fetching OpenAI usage for date: ${date}`);
+    
+    // Convert date string to Unix timestamp for start and end
+    const dateObj = new Date(date);
+    const startTime = Math.floor(dateObj.getTime() / 1000); // Beginning of day
+    const endTime = startTime + 86400; // End of day (24 hours later)
+    
+    // Use the correct endpoint with proper parameters
+    const response = await fetch(
+      `https://api.openai.com/v1/organization/usage/completions?start_time=${startTime}&end_time=${endTime}&bucket_width=1d`,
+      {
+        headers: {
+          // Use the special admin/organization key for usage data
+          'Authorization': `Bearer ${process.env.OPENAI_ADMIN_KEY || process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+      }
+    );
+    
+    console.log(`OpenAI API response status for ${date}: ${response.status}`);
+    
+    // Get the response as text first for debugging
+    const responseText = await response.text();
+    console.log(`Response for ${date} (first 100 chars): ${responseText.substring(0, 100)}...`);
+    
+    if (response.status !== 200) {
+      console.warn(`Non-200 status from OpenAI API: ${response.status}`);
+      throw new Error(`API returned status ${response.status}: ${responseText.substring(0, 200)}`);
+    }
+    
+    // Parse as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse response as JSON');
+      throw new Error(`Invalid JSON response`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error(`Error fetching OpenAI usage for date ${date}:`, error);
+    throw error;
+  }
+}
+
+// JWT auth middleware
+function jwtAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ 
+      error: 'Authentication required',
+      authType: 'JWT'
+    });
   }
   
-  // Update your endpoint to use the new 30-day function
-  app.get('/api/admin/openai-usage', async (req, res) => {
-    // Skip authentication for now to simplify debugging
-    // We'll add it back later when everything else works
+  const token = authHeader.split(' ')[1];
+  
+  try {
+    // Use JWT_SECRET from env
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('JWT_SECRET not configured in environment variables');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    const decoded = jwt.verify(token, jwtSecret);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error('JWT validation error:', error.message);
+    if (error.name === 'TokenExpiredError') {
+      res.status(401).json({ error: 'Token expired, please login again' });
+    } else {
+      res.status(401).json({ error: 'Invalid token' });
+    }
+  }
+}
+
+// Add rate limiting specific to admin routes
+const adminRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn(`⚠️ Rate limit exceeded for admin endpoint: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too many requests, please try again later.',
+      retryAfter: Math.ceil(adminRateLimiter.windowMs / 1000 / 60) + ' minutes'
+    });
+  }
+});
+
+// Create a middleware that combines JWT auth and rate limiting
+function secureAdminRoute(req, res, next) {
+  // Apply admin rate limiting
+  adminRateLimiter(req, res, (err) => {
+    if (err) return next(err);
+    
+    // If rate limit passes, apply JWT auth
+    jwtAuth(req, res, next);
+  });
+}
+
+// Enhance the login endpoint with better debugging
+app.post('/api/admin/login', rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour window
+  max: 15, // 15 attempts per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+}), async (req, res) => {
+  console.log('Login attempt received');
+  
+  // Check if request body exists
+  if (!req.body) {
+    console.error('No request body received');
+    return res.status(400).json({ error: 'No credentials provided' });
+  }
+  
+  const { username, password } = req.body;
+  console.log('Credentials received, username:', username || 'missing');
+  
+  // Get credentials from environment variables
+  const validUsername = process.env.ADMIN_USERNAME;
+  const validPassword = process.env.ADMIN_PASSWORD;
+  
+  console.log('Environment variables loaded:', {
+    ADMIN_USERNAME: validUsername ? 'set' : 'missing',
+    ADMIN_PASSWORD: validPassword ? 'set' : 'missing',
+    JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'missing'
+  });
+  
+  // Make sure credentials are configured
+  if (!validUsername || !validPassword) {
+    console.error('Missing admin credentials in environment variables');
+    return res.status(500).json({ error: 'Server configuration error: Missing credentials' });
+  }
+  
+  // Validate credentials
+  if (username === validUsername && password === validPassword) {
+    console.log('Credentials valid, generating JWT token');
     
     try {
-      console.log("Fetching OpenAI usage data for the last 30 days...");
-      const usageData = await getLast30DaysUsage();
-      console.log(`Usage data retrieved: ${usageData.dailyData.length} days, ${usageData.totalRequests} requests, ${usageData.totalTokens} tokens`);
-      res.json(usageData);
-    } catch (error) {
-      console.error("Error in usage endpoint:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-  
-  // Fallback route for SPA
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../vanilla/index.html'));
-  });
-  
-  // Make sure your getOpenAIUsage function is also updated
-  async function getOpenAIUsage() {
-    try {
-      const fetch = require('node-fetch');
-      
-      // Just get today's data to simplify
-      const today = new Date().toISOString().split('T')[0];
-      
-      console.log(`Fetching OpenAI usage for date: ${today}`);
-      
-      // Make request to OpenAI API with the correct endpoint
-      const response = await fetch(
-        `https://api.openai.com/v1/usage?date=${today}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-        }
+      // Create JWT token with 8-hour expiry
+      const token = jwt.sign(
+        { username, role: 'admin' },
+        process.env.JWT_SECRET || 'fallback-secret-do-not-use-in-production',
+        { expiresIn: '8h' }
       );
       
-      console.log(`OpenAI API response status: ${response.status}`);
+      // Log successful login
+      console.log(`👤 Admin login successful for user: ${username} from IP: ${req.ip}`);
       
-      // Get response as text first for debugging
-      const responseText = await response.text();
-      console.log(`Response body preview: ${responseText.substring(0, 200)}...`);
-      
-      // Check if it's HTML
-      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
-        console.error('Received HTML instead of JSON');
-        throw new Error('API returned HTML instead of JSON');
-      }
-      
-      // Parse as JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (err) {
-        console.error('JSON parse error:', err);
-        throw new Error(`Failed to parse response as JSON: ${err.message}`);
-      }
-      
-      // Return with a predictable structure
-      return {
-        data: data.data || [],
-        total_tokens: 0, // Will be calculated in displayUsageData
-        mockData: false
-      };
-    } catch (error) {
-      console.error('Error fetching OpenAI usage:', error);
-      
-      // Return mock data
-      return { 
-        error: error.message,
-        mockData: true,
-        data: [
-          {
-            aggregate_timestamp: new Date().toISOString(),
-            n_requests: 25,
-            operation: "completion",
-            snapshot_id: process.env.OPENAI_MODEL || "gpt-4.1-nano-2025-04-14",
-            n_context_tokens_total: 2500,
-            n_generated_tokens_total: 1200
-          }
-        ]
-      };
+      res.json({ 
+        success: true, 
+        token,
+        expiresIn: '8h'
+      });
+    } catch (tokenError) {
+      console.error('Error generating JWT token:', tokenError);
+      res.status(500).json({ error: 'Failed to generate authentication token' });
     }
+  } else {
+    // Log failed attempts
+    console.warn(`⚠️ Failed admin login attempt from IP: ${req.ip}`);
+    console.warn(`⚠️ Provided username: "${username}", Expected: "${validUsername}"`);
+    console.warn(`⚠️ Password match: ${password === validPassword ? 'yes' : 'no'}`);
+    
+    // Add delay to prevent brute force
+    setTimeout(() => {
+      res.status(401).json({ error: 'Invalid credentials' });
+    }, 500);
   }
-  
-  app.listen(PORT, '127.0.0.1', () => {
-    console.log(`\x1b[32m%s\x1b[0m`, `🚀 Server running at http://localhost:${PORT}`);
-    console.log(`\x1b[32m%s\x1b[0m`, `📝 Access the writing app in your browser`);
-    console.log(`\x1b[32m%s\x1b[0m`, `🔄 Back-and-forth writing mode activated`);
-  });
+});
+
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`\x1b[32m%s\x1b[0m`, `🚀 Server running at http://localhost:${PORT}`);
+  console.log(`\x1b[32m%s\x1b[0m`, `📝 Access the writing app in your browser`);
+  console.log(`\x1b[32m%s\x1b[0m`, `🔄 Back-and-forth writing mode activated`);
+});
