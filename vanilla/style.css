@@ -872,3 +872,94 @@ font-family: "3270";
   width: 30px;
   height: 30px;
 }
+
+/* Console log view styles */
+#console-log-view {
+  position: relative;
+  height: 3.6rem; /* Two lines of text plus some padding */
+  overflow-y: auto;
+  background-color: #f0f0f0;
+  border-top: 1px solid #ccc;
+  font-family: '3270', monospace;
+  font-size: 0.85rem;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  margin-top: auto; /* Push to bottom of container */
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #e0e0e0;
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid #ccc;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+#console-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: '3270', monospace;
+  font-size: 0.7rem;
+  color: #555;
+  padding: 1px 4px;
+}
+
+#console-clear:hover {
+  background-color: #d0d0d0;
+  color: #000;
+}
+
+#console-messages {
+  padding: 0.3rem 0.5rem;
+  height: 2.4rem; /* Approximately 2 lines of text */
+  overflow-y: auto;
+}
+
+.console-message {
+  margin: 0;
+  padding: 0;
+  line-height: 1.2;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.console-message.info {
+  color: #333;
+}
+
+.console-message.success {
+  color: #0a5d00;
+}
+
+.console-message.warning {
+  color: #a66f00;
+}
+
+.console-message.error {
+  color: #a60000;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Adjust editor sizing to accommodate console */
+#editor-container {
+  display: flex;
+  flex-direction: column;
+}
+
+#editor {
+  flex-grow: 1;
+  min-height: 0; /* Allow editor to shrink */
+}
+
+/* Ensure the height calculations account for the console */
+.resize-handle-s, .resize-handle-se {
+  bottom: 0;
+}
