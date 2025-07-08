@@ -179,10 +179,10 @@
 /* Base styles */
 body {
   font-family: var(--font-mono);
-  background: #f8fafc;
+  /* background: #f8fafc; */
   margin: 0;
-  padding-top: 3rem; /* Add space for fixed top menu */
-  padding: 3rem 2rem 2rem 2rem; /* Adjust padding to account for top menu */
+  /* padding-top: 3rem; Add space for fixed top menu */
+  padding: 1rem 2rem 2rem 2rem; /* Adjust padding to account for top menu */
 }
 
 h1 {

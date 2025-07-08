@@ -130,11 +130,11 @@ if (!process.env.OPENAI_API_KEY) {
 app.use(cors({
   origin: function(origin, callback) {
     // Log every origin request for debugging
-    console.log('CORS Request Origin:', origin);
+    //console.log('CORS Request Origin:', origin);
     
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('No origin - allowing request');
+      //console.log('No origin - allowing request');
       return callback(null, true);
     }
     
