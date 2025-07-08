@@ -2,10 +2,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import {
   getAuth,
-  signInWithPopup,
-  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
-  signOut
+  GoogleAuthProvider,
+  signInWithPopup,
+  GithubAuthProvider,
+
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
 // Your web app's Firebase configuration
@@ -28,12 +32,37 @@ try {
 }
 const auth = getAuth();
 
-// Portable sign-in and sign-out helpers
+// Google sign-in
 function signInWithGoogle() {
   return signInWithPopup(auth, new GoogleAuthProvider());
 }
+
+// GitHub sign-in
+function signInWithGitHub() {
+  return signInWithPopup(auth, new GithubAuthProvider());
+}
+
+// Email/password registration
+function registerWithEmail(email, password) {
+  return createUserWithEmailAndPassword(auth, email, password);
+}
+
+// Email/password sign-in
+function signInWithEmail(email, password) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+// Sign out
 function signOutUser() {
   return signOut(auth);
 }
 
-export { auth, onAuthStateChanged, signInWithGoogle, signOutUser };
+export {
+  auth,
+  onAuthStateChanged,
+  signInWithGoogle,
+  signOutUser,
+  registerWithEmail,
+  signInWithEmail,
+  signInWithGitHub
+};

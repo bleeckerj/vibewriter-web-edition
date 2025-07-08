@@ -15,6 +15,7 @@
       <span class="text-2xl font-bold text-white tracking-tight">Vibewriter</span>
     </div>
     <nav class="space-x-4">
+      <a href="/about.html" class="text-indigo-200 hover:text-white transition">About</a>
       <a href="/privacy" class="text-indigo-200 hover:text-white transition">Privacy Policy</a>
       <a href="index.html" class="text-indigo-200 hover:text-white transition">Home</a>
     </nav>
@@ -22,8 +23,34 @@
   <main class="flex-1 flex flex-col justify-center items-center text-center px-4">
     <div class="bg-white/10 backdrop-blur-md rounded-lg shadow-lg p-8 max-w-md w-full">
       <h1 class="text-3xl font-extrabold text-white mb-6">Sign in to Vibewriter</h1>
+      <div 
+  class='mt-8 text-[5em] sm:!text-[8em] font-[ChicagoKare] text-center' 
+  style='
+    background: linear-gradient(90deg, #0ff, #0080ff, #8000ff, #ff00ff, #ff0080, #ff8000, #0ff); 
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: gradient 10s ease infinite;
+  '
+>
+  Vibewriter
+  <style>
+    @keyframes gradient {
+      0% { background-position: 0% 50% }
+      50% { background-position: 100% 50% }
+      100% { background-position: 0% 50% }
+    }
+  </style>
       <button id="google-signin" class="w-full flex items-center justify-center bg-white text-gray-900 font-bold py-3 px-4 rounded-lg shadow hover:bg-gray-100 transition mb-4">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="h-6 w-6 mr-2"> Sign in with Google
+      </button>
+      <button id="github-signin" class="w-full flex items-center justify-center bg-gray-900 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-gray-800 transition mb-4">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/github.svg" alt="GitHub" class="h-6 w-6 mr-2"> Sign in with GitHub
+      </button>
+      <button id="email-signin" class="w-full flex items-center justify-center bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-indigo-700 transition mb-4">
+        <svg class="h-6 w-6 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 12H8m8 0l-4-4m4 4l-4 4"></path></svg>
+        Sign in with Email
       </button>
       <div id="firebase-error" class="text-red-400 text-sm mt-2 hidden"></div>
       <div id="user-info" class="hidden mt-6">
@@ -36,9 +63,11 @@
     &copy; 2025 Near Future Laboratory. All rights reserved.
   </footer>
   <script type="module">
-    import { auth, onAuthStateChanged, signInWithGoogle, signOutUser } from './firebase-auth.js';
+    import { auth, onAuthStateChanged, signInWithGoogle, signOutUser, signInWithGitHub, signInWithEmail } from './firebase-auth.js';
 
     const googleBtn = document.getElementById('google-signin');
+    const githubBtn = document.getElementById('github-signin');
+    const emailBtn = document.getElementById('email-signin');
     const logoutBtn = document.getElementById('logout-btn');
     const userInfo = document.getElementById('user-info');
     const userEmail = document.getElementById('user-email');
@@ -68,6 +97,31 @@
           await signInWithGoogle();
         } catch (err) {
           errorDiv.textContent = err.message || 'Login failed.';
+          errorDiv.classList.remove('hidden');
+        }
+      });
+    }
+
+    if (githubBtn) {
+      githubBtn.addEventListener('click', async () => {
+        try {
+          await signInWithGitHub();
+        } catch (err) {
+          errorDiv.textContent = err.message || 'GitHub login failed.';
+          errorDiv.classList.remove('hidden');
+        }
+      });
+    }
+
+    if (emailBtn) {
+      emailBtn.addEventListener('click', async () => {
+        const email = prompt('Enter your email:');
+        const password = prompt('Enter your password:');
+        if (!email || !password) return;
+        try {
+          await signInWithEmail(email, password);
+        } catch (err) {
+          errorDiv.textContent = err.message || 'Email login failed.';
           errorDiv.classList.remove('hidden');
         }
       });
