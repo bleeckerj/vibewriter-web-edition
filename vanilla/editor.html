@@ -23,6 +23,7 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <!-- Local stylesheet -->
   <link rel="stylesheet" href="style.css" id="style-sheet" />
+  <link rel="stylesheet" href="tailwind-build.css" />
   <!-- Import Tiptap dependencies -->
   <script type="importmap">
   {
@@ -41,8 +42,8 @@
         <span>Vibewriter (A Ghostwriter Fork)</span>
       </div>
       <div class="menu-right">
-        <button id="style-switcher" class="toolbar-btn">TUI Style</button>
-        <button id="menu-logout-btn" class="toolbar-btn" style="display:none;">Log Out</button>
+        <button id="style-switcher" class="brutal-btn">TUI Style</button>
+        <button id="menu-logout-btn" class="toolbar-btn tui-btn" style="display:none;">Log Out</button>
         <a href="/privacy">Privacy Policy</a>
       </div>
     </div>
@@ -56,11 +57,10 @@
     <div class="editor-toolbar top-row">
       <div class="left-controls">
         <button id="menu-button" class="toolbar-btn">☰</button>
-        <button id="startBtn" class="primary-btn">START</button>
+        <button id="startBtn" class="primary-btn tui-btn">START</button>
       </div>
       <div class="right-controls">
         <div id="turn-indicator" class="turn-indicator">🤖</div>
-        <button id="style-switcher" class="toolbar-btn">TUI Style</button>
       </div>
     </div>
     
@@ -120,6 +120,10 @@
   
   <div id="floating-timer" class="floating-timer">00:30</div>
   <div id="response"></div>
+
+  <!-- Floating Laboratory Guy Icon -->
+  <img src="/images/site/LaboratoryGuy_01__CIRCLE_74x74.webp" alt="Floating Icon" class="fixed bottom-5 left-6 rounded-full shadow-[-2px_2px_8px_rgba(0,0,0,0.4)] z-50  backdrop-blur-[1.5px] sm:hidden">
+  <img src="/images/site/LaboratoryGuy_01__CIRCLE_80x80.webp" alt="Floating Icon" class="hidden sm:block  fixed bottom-5 left-6 rounded-full shadow-[-2px_2px_8px_rgba(0,0,0,0.4)] z-50 backdrop-blur-[2px]">
   
   <script type="module" src="main.js"></script>
   <script type="module">

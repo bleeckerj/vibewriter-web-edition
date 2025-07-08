@@ -528,15 +528,14 @@ function emanateCharacterToEditor(character) {
   isUserTurn = wasUserTurn;
 }
 
-// Add button state handlers
-function setupButtonStateHandlers() {
-  const startBtn = document.getElementById('startBtn');
-  
+// Generalized function to set up button UI interaction and click handler
+function setupButtonUI(button, onClick) {
+  if (!button) return;
   // Add the button-out class by default
-  startBtn.classList.add('button-out');
-  
+  button.classList.add('button-out');
+
   // Handle mousedown - switch to button-in state
-  startBtn.addEventListener('mousedown', function() {
+  button.addEventListener('mousedown', function() {
     if (!this.disabled) {
       this.classList.remove('button-out');
       this.classList.add('button-in');
@@ -544,7 +543,7 @@ function setupButtonStateHandlers() {
   });
   
   // Handle mouseup - switch back to button-out state
-  startBtn.addEventListener('mouseup', function() {
+  button.addEventListener('mouseup', function() {
     if (!this.disabled) {
       this.classList.remove('button-in');
       this.classList.add('button-out');
@@ -552,12 +551,15 @@ function setupButtonStateHandlers() {
   });
   
   // Handle mouseleave - ensure button returns to out state
-  startBtn.addEventListener('mouseleave', function() {
+  button.addEventListener('mouseleave', function() {
     this.classList.remove('button-in');
     this.classList.add('button-out');
   });
-  
-  // Add similar functionality to any other buttons that need it
+
+  // Assign the provided click handler
+  if (typeof onClick === 'function') {
+    button.addEventListener('click', onClick);
+  }
 }
 
 // Add this function to make the editor draggable with conventional styling
@@ -887,10 +889,7 @@ function initializeApp() {
   
   // Initialize editor draggability
   makeEditorDraggable();
-  
-  // Initialize button state handlers
-  setupButtonStateHandlers();
-  
+
   createCustomDropdowns();
 
   // Initialize style switcher
@@ -901,15 +900,48 @@ function initializeApp() {
   
   // Set initial editor size and position
   centerEditorOnLoad();
-  
-  // Add event listener for START button
+
+  // Set up START button with generalized UI and click handler
   const startBtn = document.getElementById('startBtn');
   if (startBtn) {
-    startBtn.addEventListener('click', handleStartButtonClick);
-    console.log('Start button event listener added');
+    setupButtonUI(startBtn, handleStartButtonClick);
+    console.log('Start button UI and event handler set up');
   } else {
     console.error('Start button not found');
   }
+
+  // Set up style-switcher button with generalized UI and click handler
+  const styleSwitcher = document.getElementById('style-switcher');
+  if (styleSwitcher) {
+    // Remove any duplicate click handlers if present
+    const newStyleSwitcher = styleSwitcher.cloneNode(true);
+    styleSwitcher.parentNode.replaceChild(newStyleSwitcher, styleSwitcher);
+    // Add TUI visual class for consistent style
+    newStyleSwitcher.classList.add('primary-btn');
+    setupButtonUI(newStyleSwitcher, function(e) {
+      // Let the original click handler (initStyleSwitcher) handle the logic
+      // This is just for UI feedback
+    });
+    // Re-initialize style switcher logic
+    initStyleSwitcher();
+    console.log('Style switcher button UI and TUI style set up');
+  } else {
+    console.error('Style switcher button not found');
+  }
+
+  // Set up TUI style buttons with generalized UI and click handler
+  // All buttons with class 'tui-btn' will get the same UI interaction logic
+  const tuiButtons = document.querySelectorAll('.tui-btn');
+  tuiButtons.forEach(btn => {
+    // If the button already has a click handler, preserve it
+    // Otherwise, just set up the UI interaction
+    // You can assign a handler via btn.dataset.onclick if needed
+    let handler = null;
+    if (btn.dataset && btn.dataset.onclick && typeof window[btn.dataset.onclick] === 'function') {
+      handler = window[btn.dataset.onclick];
+    }
+    setupButtonUI(btn, handler);
+  });
   
   // Add event listener for genre select change
   const genreSelect = document.getElementById('genre-select');
