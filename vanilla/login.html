@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - Vibewriter</title>
+  <meta name="description" content="Login to Vibewriter and start writing with AI." />
+  <link rel="stylesheet" href="tailwind-build.css" />
+  <link rel="stylesheet" href="style.css" id="style-sheet" />
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-indigo-900 to-blue-900 min-h-screen flex flex-col">
+  <header class="w-full py-6 px-4 flex justify-between items-center">
+    <div class="flex items-center space-x-3">
+      <img src="/images/vibewriter-preview.png" alt="Vibewriter Logo" class="h-10 w-10 rounded-full shadow-lg">
+      <span class="text-2xl font-bold text-white tracking-tight">Vibewriter</span>
+    </div>
+    <nav class="space-x-4">
+      <a href="/privacy" class="text-indigo-200 hover:text-white transition">Privacy Policy</a>
+      <a href="index.html" class="text-indigo-200 hover:text-white transition">Home</a>
+    </nav>
+  </header>
+  <main class="flex-1 flex flex-col justify-center items-center text-center px-4">
+    <div class="bg-white/10 backdrop-blur-md rounded-lg shadow-lg p-8 max-w-md w-full">
+      <h1 class="text-3xl font-extrabold text-white mb-6">Sign in to Vibewriter</h1>
+      <button id="google-signin" class="w-full flex items-center justify-center bg-white text-gray-900 font-bold py-3 px-4 rounded-lg shadow hover:bg-gray-100 transition mb-4">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="h-6 w-6 mr-2"> Sign in with Google
+      </button>
+      <div id="firebase-error" class="text-red-400 text-sm mt-2 hidden"></div>
+      <div id="user-info" class="hidden mt-6">
+        <p class="text-white mb-2">Signed in as <span id="user-email"></span></p>
+        <button id="logout-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded shadow transition">Log Out</button>
+      </div>
+    </div>
+  </main>
+  <footer class="w-full py-6 text-center text-indigo-200 text-sm">
+    &copy; 2025 Vibewriter. All rights reserved.
+  </footer>
+  <script type="module">
+    import { auth, onAuthStateChanged, signInWithGoogle, signOutUser } from './firebase-auth.js';
+
+    const googleBtn = document.getElementById('google-signin');
+    const logoutBtn = document.getElementById('logout-btn');
+    const userInfo = document.getElementById('user-info');
+    const userEmail = document.getElementById('user-email');
+    const errorDiv = document.getElementById('firebase-error');
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        // User is signed in
+        googleBtn.style.display = 'none';
+        userInfo.classList.remove('hidden');
+        userEmail.textContent = user.email;
+        // Redirect to editor.html after short delay
+        setTimeout(() => {
+          window.location.href = 'editor.html';
+        }, 1000);
+      } else {
+        // User is signed out
+        googleBtn.style.display = '';
+        userInfo.classList.add('hidden');
+        userEmail.textContent = '';
+      }
+    });
+
+    if (googleBtn) {
+      googleBtn.addEventListener('click', async () => {
+        try {
+          await signInWithGoogle();
+        } catch (err) {
+          errorDiv.textContent = err.message || 'Login failed.';
+          errorDiv.classList.remove('hidden');
+        }
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        await signOutUser();
+      });
+    }
+  </script>
+</body>
+</html>
