@@ -1,5 +1,6 @@
 //require('dotenv').config();
 const express = require('express');
+const { verifyFirebaseToken } = require('./firebase-admin');
 const cors = require('cors');
 const path = require('path');
 const { OpenAI } = require('openai');

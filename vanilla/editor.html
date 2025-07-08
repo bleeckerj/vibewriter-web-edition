@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vibe Mode Writing Tool (Vanilla JS)</title>
+  
+  <!-- Open Graph / Social Media Meta Tags -->
+  <meta property="og:title" content="Vibewriter - Pilates for Your Writer's 🧠" />
+  <meta property="og:description" content="Vibewriter is a tool to help you exercise your creative muscles and bulk up your writing skills in collaboration with an AI partner." />
+  <meta property="og:image" content="/images/vibewriter-preview.png" />
+  <meta property="og:url" content="https://vibewriter.com" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Vibewriter is a tool to help you exercise your creative muscles and bulk up your writing skills in collaboration with an AI partner." />
+  <meta name="keywords" content="creative writing, AI writing assistant, writing tool, collaborative writing, exercise, daily pages, everyday exercises" />
+  
+  <!-- Google Fonts fallback (will be used until local fonts load) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <!-- Local stylesheet -->
+  <link rel="stylesheet" href="style.css" id="style-sheet" />
+  <!-- Import Tiptap dependencies -->
+  <script type="importmap">
+  {
+    "imports": {
+      "@tiptap/core": "https://esm.sh/@tiptap/core@2.1.12",
+      "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.1.12"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Top menu bar -->
+  <div class="top-menu-bar">
+    <div class="menu-container">
+      <div class="menu-left">
+        <span>Vibewriter (A Ghostwriter Fork)</span>
+      </div>
+      <div class="menu-right">
+        <button id="style-switcher" class="toolbar-btn">TUI Style</button>
+        <button id="menu-logout-btn" class="toolbar-btn" style="display:none;">Log Out</button>
+        <a href="/privacy">Privacy Policy</a>
+      </div>
+    </div>
+  </div>
+  
+  <!-- <h1>Vibe Mode Writing Tool</h1> -->
+  
+  <!-- Editor container with two-row toolbar -->
+  <div id="editor-container">
+    <!-- Editor toolbar top row: hamburger, start button, turn indicator, style switcher -->
+    <div class="editor-toolbar top-row">
+      <div class="left-controls">
+        <button id="menu-button" class="toolbar-btn">☰</button>
+        <button id="startBtn" class="primary-btn">START</button>
+      </div>
+      <div class="right-controls">
+        <div id="turn-indicator" class="turn-indicator">🤖</div>
+        <button id="style-switcher" class="toolbar-btn">TUI Style</button>
+      </div>
+    </div>
+    
+    <!-- Editor toolbar bottom row: configuration options -->
+    <div class="editor-toolbar bottom-row">
+      <div class="config-controls">
+        <div class="control-group">
+          <label for="genre-select">Vibe</label>
+          <select id="genre-select">
+            <option value="hardboiled" selected>Hardboiled Detective</option>
+            <option value="fantasy">High Fantasy</option>
+            <option value="scifi">Science Fiction</option>
+            <option value="horror">Horror</option>
+            <option value="romance">Romance</option>
+            <option value="western">Western</option>
+            <option value="poetry">Poetry</option>
+            <option value="solarpunk">Solarpunk</option>
+            <option value="freewriting">Free Writing</option>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label for="timer-select">Timer</label>
+          <select id="timer-select">
+            <option value="15">15s</option>
+            <option value="30">30s</option>
+            <option value="60" selected>1m</option>
+            <option value="120">2m</option>
+            <option value="300">5m</option>
+            <option value="600">10m</option>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label for="ai-length-select">Muse</label>
+          <select id="ai-length-select">
+            <option value="short" selected>Short</option>
+            <option value="medium">Medium</option>
+            <option value="long">Long</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Editor content -->
+    <div id="editor" spellcheck="true"></div>
+    
+    <!-- Console log view -->
+    <div id="console-log-view">
+      <div class="console-header">
+        <span>Console</span>
+        <button id="console-clear" title="Clear console">Clear</button>
+      </div>
+      <div id="console-messages"></div>
+    </div>
+  </div>
+  
+  <div id="floating-timer" class="floating-timer">00:30</div>
+  <div id="response"></div>
+  
+  <script type="module" src="main.js"></script>
+  <script type="module">
+import { auth, onAuthStateChanged, signOutUser } from './firebase-auth.js';
+
+const styleSwitcher = document.getElementById('style-switcher');
+if (styleSwitcher) {
+  styleSwitcher.addEventListener('click', () => {
+    document.body.classList.toggle('tui');
+  });
+}
+// Logout button in menu bar
+const menuLogoutBtn = document.getElementById('menu-logout-btn');
+if (menuLogoutBtn) {
+  menuLogoutBtn.addEventListener('click', () => {
+    signOutUser();
+  });
+}
+// Show/hide logout button based on auth state
+onAuthStateChanged(auth, (user) => {
+  if (menuLogoutBtn) {
+    menuLogoutBtn.style.display = user ? 'inline-block' : 'none';
+  }
+});
+// Redirect to login if not authenticated
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    window.location.href = 'index.html';
+  }
+});
+</script>
+</body>
+</html>
