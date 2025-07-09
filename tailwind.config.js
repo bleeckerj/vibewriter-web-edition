@@ -1,5 +1,7 @@
 module.exports = {
   content: [
+    "./vanilla/index.html",
+    "./vanilla/*.html",
     "./vanilla/**/*.html"
   ],
     safelist: [

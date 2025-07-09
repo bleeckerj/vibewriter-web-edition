@@ -130,12 +130,6 @@
   <script type="module">
 import { auth, onAuthStateChanged, signOutUser } from './firebase-auth.js';
 
-const styleSwitcher = document.getElementById('style-switcher');
-if (styleSwitcher) {
-  styleSwitcher.addEventListener('click', () => {
-    document.body.classList.toggle('tui');
-  });
-}
 // Logout button in menu bar
 const menuLogoutBtn = document.getElementById('menu-logout-btn');
 if (menuLogoutBtn) {
@@ -156,10 +150,10 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 </script>
-  <footer class="mt-10 w-full py-6 text-center text-indigo-200 text-sm">
-    &copy; 2025 Near Future Laboratory. All rights reserved.
-    <a href='https://nearfuturelaboratory.com/'><img src="/images/site/LaboratoryGuy_01__CIRCLE_80x80.webp" alt="Vibewriter Logo" style="margin: 16px auto; width: 60px;"class="mx-auto w-[60px] mt-4 shadow-lg"></a>
-      <a href="/privacy" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Privacy Policy</a>
+  <footer class="fixed bottom-0 left-0 w-full py-4 text-center text-gray-400 text-sm bg-gray-100 backdrop-blur-sm">
+    &copy; 2025 <a class="hover:text-gray-600" href='https://nearfuturelaboratory.com'>Near Future Laboratory</a><br/> All rights reserved.<br/>
+    <!-- <a href='https://nearfuturelaboratory.com/'><img src="/images/site/LaboratoryGuy_01__CIRCLE_80x80.webp" alt="Vibewriter Logo" style="margin: 16px auto; width: 60px;"class="mx-auto w-[60px] mt-4 shadow-lg"></a> -->
+      <a href="/privacy" class="sm:text-[1em] text-gray-400 hover:text-gray-600 transition">Privacy Policy</a>
   </footer>
 </body>
 </html>
