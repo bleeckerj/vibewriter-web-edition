@@ -592,6 +592,14 @@ function makeEditorDraggable() {
     editorContainer.insertBefore(dragHandle, editorContainer.firstChild);
   }
   
+  // Get all toolbar elements that should be draggable
+  const toolbarElements = [
+    document.getElementById('menu-button'),
+    document.querySelector('.editor-toolbar.top-row'),
+    document.querySelector('.editor-toolbar.bottom-row'),
+    document.querySelector('.turn-indicator')
+  ].filter(el => el !== null);
+  
   // Add resize handles if they don't exist
   if (!document.querySelector('.resize-handle-e')) {
     const resizeHandles = [
@@ -612,18 +620,50 @@ function makeEditorDraggable() {
   let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
   let originalWidth = null;
   
-  // Only attach event listener if it hasn't been attached already
-  if (!dragHandle.hasAttribute('data-draggable')) {
-    dragHandle.setAttribute('data-draggable', 'true');
+  // Function to constrain position within viewport bounds
+  function constrainToViewport(left, top, width, height) {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const topMenuHeight = document.querySelector('.top-menu-bar')?.offsetHeight || 0;
     
-    dragHandle.addEventListener('mousedown', function(e) {
-      // Only start dragging if the click is on the drag handle itself
-      // and not on any of its child controls
-      if (e.target === dragHandle || e.target.classList.contains('drag-icon')) {
-        dragMouseDown(e);
-      }
-    });
+    // Constrain horizontal position - editor must stay fully within viewport
+    const maxLeft = viewportWidth - width;
+    const minLeft = 0;
+    left = Math.max(minLeft, Math.min(maxLeft, left));
+    
+    // Constrain vertical position - editor must stay fully within viewport
+    const maxTop = viewportHeight - height;
+    const minTop = topMenuHeight;
+    top = Math.max(minTop, Math.min(maxTop, top));
+    
+    return { left, top };
   }
+  
+  // Attach drag event listeners to all toolbar elements
+  toolbarElements.forEach(element => {
+    if (!element.hasAttribute('data-draggable')) {
+      element.setAttribute('data-draggable', 'true');
+      element.style.cursor = 'move';
+      
+      element.addEventListener('mousedown', function(e) {
+        // Only start dragging if clicking on non-interactive elements
+        const target = e.target;
+        const isButton = target.tagName === 'BUTTON' || target.closest('button');
+        const isSelect = target.tagName === 'SELECT' || target.closest('select');
+        const isInput = target.tagName === 'INPUT' || target.closest('input');
+        
+        // Special case: allow dragging from the hamburger menu button (menu-button)
+        const isMenuButton = target.id === 'menu-button' || target.closest('#menu-button');
+        
+        const isInteractive = (isButton || isSelect || isInput) && !isMenuButton;
+        
+        // Allow dragging from the toolbar area and from the hamburger menu button
+        if (!isInteractive) {
+          dragMouseDown(e);
+        }
+      });
+    }
+  });
   
   // Add resizing functionality
   const MIN_WIDTH = 400;  // Minimum width in pixels
@@ -637,7 +677,9 @@ function makeEditorDraggable() {
     handleE.setAttribute('data-resizable', 'true');
     
     resizeEFunction = function(e) {
-      const newWidth = Math.max(MIN_WIDTH, e.clientX - editorContainer.getBoundingClientRect().left);
+      const rect = editorContainer.getBoundingClientRect();
+      const maxWidth = window.innerWidth - rect.left - 20; // 20px margin from right edge
+      const newWidth = Math.max(MIN_WIDTH, Math.min(maxWidth, e.clientX - rect.left));
       editorContainer.style.width = newWidth + 'px';
     };
     
@@ -655,7 +697,9 @@ function makeEditorDraggable() {
     handleS.setAttribute('data-resizable', 'true');
     
     resizeSFunction = function(e) {
-      const newHeight = Math.max(MIN_HEIGHT, e.clientY - editorContainer.getBoundingClientRect().top);
+      const rect = editorContainer.getBoundingClientRect();
+      const maxHeight = window.innerHeight - rect.top - 20; // 20px margin from bottom edge
+      const newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, e.clientY - rect.top));
       editorContainer.style.height = newHeight + 'px';
       
       // Also update the editor and ProseMirror height
@@ -679,8 +723,11 @@ function makeEditorDraggable() {
     handleSE.setAttribute('data-resizable', 'true');
     
     resizeSEFunction = function(e) {
-      const newWidth = Math.max(MIN_WIDTH, e.clientX - editorContainer.getBoundingClientRect().left);
-      const newHeight = Math.max(MIN_HEIGHT, e.clientY - editorContainer.getBoundingClientRect().top);
+      const rect = editorContainer.getBoundingClientRect();
+      const maxWidth = window.innerWidth - rect.left - 20;
+      const maxHeight = window.innerHeight - rect.top - 20;
+      const newWidth = Math.max(MIN_WIDTH, Math.min(maxWidth, e.clientX - rect.left));
+      const newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, e.clientY - rect.top));
       
       editorContainer.style.width = newWidth + 'px';
       editorContainer.style.height = newHeight + 'px';
@@ -749,14 +796,21 @@ function makeEditorDraggable() {
     pos3 = e.clientX;
     pos4 = e.clientY;
     
-    // Set the element's new position
+    // Calculate the new position
     const newTop = (editorContainer.offsetTop - pos2);
     const newLeft = (editorContainer.offsetLeft - pos1);
     
+    // Get current dimensions
+    const width = editorContainer.offsetWidth;
+    const height = editorContainer.offsetHeight;
+    
+    // Constrain to viewport bounds
+    const constrainedPos = constrainToViewport(newLeft, newTop, width, height);
+    
     // Apply position using direct style properties
     editorContainer.style.position = 'absolute';
-    editorContainer.style.top = newTop + 'px';
-    editorContainer.style.left = newLeft + 'px';
+    editorContainer.style.top = constrainedPos.top + 'px';
+    editorContainer.style.left = constrainedPos.left + 'px';
     editorContainer.style.margin = '0';
     editorContainer.style.width = originalWidth + 'px'; // Set fixed width to maintain size
   }
@@ -766,6 +820,22 @@ function makeEditorDraggable() {
     document.removeEventListener('mousemove', elementDrag);
     editorContainer.classList.remove('dragging');
   }
+  
+  // Add window resize listener to reposition editor if it goes out of bounds
+  window.addEventListener('resize', function() {
+    const rect = editorContainer.getBoundingClientRect();
+    const constrainedPos = constrainToViewport(
+      editorContainer.offsetLeft, 
+      editorContainer.offsetTop, 
+      rect.width, 
+      rect.height
+    );
+    
+    if (constrainedPos.left !== editorContainer.offsetLeft || constrainedPos.top !== editorContainer.offsetTop) {
+      editorContainer.style.left = constrainedPos.left + 'px';
+      editorContainer.style.top = constrainedPos.top + 'px';
+    }
+  });
 }
 
 // Initialize style switcher
