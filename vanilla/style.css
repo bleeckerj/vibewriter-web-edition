@@ -12,56 +12,27 @@
   position: relative;
   transition: transform 10ms ease-in-out, box-shadow 5ms ease-in-out, background-color 10ms ease-in-out, border-color 10ms ease-in-out;
 }
-.brutal-btn:hover:not([disabled]) {
+.brutal-btn:hover:not([disabled]):not(.disabled) {
   background-color: #f0f0f0;
   box-shadow: inset 2px 2px 0px 0px rgba(0,0,0,1);
   transform: translateX(0.8px) translateY(0.8px) scale(0.95);
   border-color: black;
 }
-.brutal-btn:active:not([disabled]) {
+.brutal-btn:active:not([disabled]):not(.disabled) {
   background-color: #e0e0e0;
   box-shadow: inset 2px 3px 0px 0px rgba(0,0,0,0.7);
   transform: translateX(2px) translateY(2px) scale(0.98);
   border-color: #222;
 }
-.brutal-btn:disabled {
-  background-color: #f31010;
-  cursor: not-allowed;
-  box-shadow: 2px 2px 0px 0px rgba(0,0,0,0.4);
-  color: #666;
-}
-.brutal-btn {
-  padding: 3px 3px;
-  font-size: 1rem;
-  font-weight: bold;
-  background-color: white;
-  color: black;
-  border: 1px solid black;
-  border-radius: 0; /* More terminal-like */
-  cursor: pointer;
-  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
-  font-family: "3270";
-  position: relative;
-  transition: transform 10ms ease-in-out, box-shadow 10ms ease-in-out, background-color 10ms ease-in-out, border-color 10ms ease-in-out;
-}
-.brutal-btn:hover:not([disabled]) {
-  background-color: #f0f0f0;
-  box-shadow: inset 1.5px 2px 0px 0px rgba(0,0,0,0.8);
-  transform: translateX(1px) translateY(1px) scale(0.99);
-  border-color: black;
-}
-.brutal-btn:active:not([disabled]) {
+.brutal-btn:disabled,
+.brutal-btn.disabled {
   background-color: #e0e0e0;
-  box-shadow: inset 2px 3px 0px 0px rgba(0,0,0,0.7);
-  transform: translateX(2px) translateY(2px) scale(0.98);
-  border-color: #222;
-}
-.brutal-btn:disabled {
-  background-color: #93c5fd;
   cursor: not-allowed;
-  box-shadow: 2px 2px 0px 0px rgba(0,0,0,0.4);
+  box-shadow: 1px 1px 0px 0px rgba(0,0,0,0.4);
   color: #666;
+  transform: none !important; /* Ensure no transform for disabled buttons */
 }
+
 /* Font declarations */
 @font-face {
   font-family: 'JetBrains Mono';
@@ -956,6 +927,19 @@ font-family: "3270";
   font-family: var(--font-mono);
   letter-spacing: 0.05em;
   transition: all 0.2s;
+}
+
+.toolbar-btn:disabled,
+.toolbar-btn.disabled {
+  background-color: #999;
+  color: #bbb;
+  cursor: not-allowed;
+  border-color: #aaa;
+}
+
+.toolbar-btn:hover:not(:disabled):not(.disabled) {
+  background-color: #666;
+  border-color: #777;
 }
 
 /* Console log view styles */

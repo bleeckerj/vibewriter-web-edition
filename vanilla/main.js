@@ -105,6 +105,9 @@ function initializeEditor() {
         if (transaction && transaction.docChanged) {
           currentContent = editor.getHTML();
           
+          // Update save button state whenever content changes
+          updateSaveButtonState();
+          
           // If it's the user's turn and they haven't started typing yet
           if (isUserTurn && !hasUserStartedTyping) {
             console.log("First keystroke detected");
@@ -276,6 +279,9 @@ async function handleStartButtonClick() {
   // Clear editor content for fresh start
   editor.commands.setContent('');
   currentContent = '';
+  
+  // Update save button state after clearing content
+  updateSaveButtonState();
   
   // Restore the original state (though it should still be false)
   isUserTurn = wasUserTurn;
@@ -492,6 +498,10 @@ async function emanateStringToEditor(content, timeout = 30, onComplete = null) {
       emanateCharacterToEditor('\u00A0'); // add space at end
       editor.commands.scrollIntoView();
       emanationInProgress = false;
+      
+      // Update save button state after AI content is complete
+      updateSaveButtonState();
+      
       if (onComplete) onComplete();
     }
   }
@@ -519,8 +529,9 @@ function emanateCharacterToEditor(character) {
   const wasUserTurn = isUserTurn;
   isUserTurn = false;
   
+  // Always insert AI content at the end of the document
   editor.chain()
-    .focus()
+    .focus('end')  // Focus at the end of the document
     .insertContent(character)
     .run();
     
@@ -910,6 +921,18 @@ function initializeApp() {
     console.error('Start button not found');
   }
 
+  // Set up SAVE button with generalized UI and click handler
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) {
+    setupButtonUI(saveBtn, handleSaveButtonClick);
+    console.log('Save button UI and event handler set up');
+    
+    // Initialize save button state
+    updateSaveButtonState();
+  } else {
+    console.error('Save button not found');
+  }
+
   // Set up style-switcher button with generalized UI and click handler
   const styleSwitcher = document.getElementById('style-switcher');
   if (styleSwitcher) {
@@ -952,6 +975,9 @@ function initializeApp() {
       // Reset editor and state
       editor.commands.setContent('');
       currentContent = '';
+      
+      // Update save button state after clearing content
+      updateSaveButtonState();
       
       // Make the editor not editable during LLM response
       editor.setEditable(false);
@@ -1066,6 +1092,67 @@ function createCustomDropdowns() {
   });
   
   console.log('Custom dropdowns initialized');
+}
+
+// Update save button state based on editor content
+function updateSaveButtonState() {
+  const saveBtn = document.getElementById('saveBtn');
+  if (!saveBtn || !editor) return;
+
+  const content = editor.getHTML();
+  const textContent = stripHtml(content);
+  const hasContent = textContent.trim().length > 0;
+  
+  //saveBtn.disabled = !hasContent;
+  saveBtn.classList.toggle('disabled', !hasContent);
+  // Update visual state
+  if (hasContent) {
+    saveBtn.classList.remove('disabled');
+  } else {
+    saveBtn.classList.add('disabled');
+  }
+}
+
+// Handle SAVE button click - saves the current editor content
+function handleSaveButtonClick() {
+  if (!editor) {
+    console.error('Editor not initialized');
+    return;
+  }
+
+  // Get the current content from the editor
+  const content = editor.getHTML();
+  const textContent = stripHtml(content);
+  
+  if (!textContent.trim()) {
+    // This shouldn't happen since button should be disabled, but just in case
+    console.warn('Save button clicked but editor is empty');
+    return;
+  }
+
+  // Create a filename with timestamp
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `vibewriter-${timestamp}.txt`;
+
+  // Create a blob with the text content
+  const blob = new Blob([textContent], { type: 'text/plain' });
+  
+  // Create a download link
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  
+  // Trigger the download
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  
+  // Clean up the URL object
+  URL.revokeObjectURL(url);
+  
+  console.log(`Content saved as ${filename}`);
 }
 
 // Call this function after the page loads

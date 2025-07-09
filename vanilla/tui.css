@@ -359,6 +359,20 @@ button:active {
   border-color: var(--highlight-color);
 }
 
+button:disabled,
+button.disabled {
+  background-color: #333;
+  color: #666;
+  cursor: not-allowed;
+  border-color: #444;
+}
+
+button:hover:disabled,
+button:hover.disabled {
+  background-color: #333;
+  color: #666;
+}
+
 /* Turn indicator */
 .turn-indicator {
   position: relative;
@@ -674,7 +688,7 @@ button:active {
 
 .tui-mode .custom-option {
   color: #0f0;
-  background-color: #000;
+  background-color: #010;
   font-family: '3270', monospace !important;
   padding: 4px 8px;
   cursor: pointer;
@@ -703,15 +717,19 @@ button:active {
   outline: none !important;
   border: none !important;
   box-shadow: none !important;
+      background-color: #030;
+
 }
 
 .tui-mode #editor:focus {
   outline: none !important;
   border: none !important;
   box-shadow: none !important;
+      background-color: #030;
+
 }
 
 /* Optional: Add a subtle "focus state" indicator for TUI Style */
 .tui-mode .ProseMirror:focus {
-  background-color: #0a0a0a; /* Slightly darker background when focused */
+  background-color: #030;
 }
