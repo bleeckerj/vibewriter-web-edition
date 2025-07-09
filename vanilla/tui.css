@@ -700,6 +700,7 @@ button:active {
   background-color: #030;
 }
 
+
 .tui-mode .ProseMirror[contenteditable="false"] {
     background-color: #030;
     cursor: not-allowed;
