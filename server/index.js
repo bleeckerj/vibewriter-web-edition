@@ -9,6 +9,7 @@ const rfs = require('rotating-file-stream');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const zlib = require('zlib');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 // Check for required environment variables
 const requiredEnvVars = ['ADMIN_USERNAME', 'ADMIN_PASSWORD', 'JWT_SECRET'];
@@ -40,6 +41,12 @@ const PORT = process.env.PORT || 3000;
 const logsDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
+}
+
+// Create cache directory for decompressed log files
+const cacheDir = path.join(__dirname, 'cache');
+if (!fs.existsSync(cacheDir)) {
+  fs.mkdirSync(cacheDir);
 }
 
 // Configure rate limiters for different endpoints
@@ -289,30 +296,137 @@ app.post('/api/log', (req, res) => {
 console.log('Setting up secure admin routes with JWT authentication');
 
 // Admin endpoint to view logs
-app.get('/api/admin/logs', secureAdminRoute, (req, res) => {
+app.get('/api/admin/logs', secureAdminRoute, async (req, res) => {
   try {
-    // Read the log file
-    fs.readFile(path.join(logsDir, 'ghostwriter-access.log'), 'utf8', (err, data) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to read logs' });
-      }
+    // Read all log files (current and gzipped)
+    const logFiles = fs.readdirSync(logsDir).filter(file => 
+      file === 'ghostwriter-access.log' || file.endsWith('.log.gz')
+    );
+    
+    console.log('Found log files:', logFiles);
+    
+    let allLogs = [];
+    
+    // Process each log file
+    for (const file of logFiles) {
+      const filePath = path.join(logsDir, file);
+      console.log(`Processing log file: ${file}`);
       
-      // Parse logs (each line is a JSON object)
-      const logs = data.trim().split('\n').map(line => {
-        try {
-          return JSON.parse(line);
-        } catch (e) {
-          return { error: 'Invalid log entry', raw: line };
+      try {
+        // Check if we have a cached version
+        const cacheFile = path.join(cacheDir, `${file}.json`);
+        let logs = [];
+        let useCache = false;
+        
+        // Check if cache exists and is newer than the original file
+        if (fs.existsSync(cacheFile)) {
+          const originalStat = fs.statSync(filePath);
+          const cacheStat = fs.statSync(cacheFile);
+          
+          // Cache is valid if it's newer than the original file
+          if (cacheStat.mtime > originalStat.mtime) {
+            console.log(`Using cached data for ${file}`);
+            try {
+              logs = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+              useCache = true;
+            } catch (cacheErr) {
+              console.error(`Error reading cache file for ${file}:`, cacheErr.message);
+              // Cache is corrupted, we'll regenerate it
+            }
+          } else {
+            console.log(`Cache for ${file} is outdated, regenerating...`);
+          }
         }
-      });
-      
-      res.json({ logs });
+        
+        // If we don't have valid cache, decompress and parse
+        if (!useCache) {
+          let data;
+          
+          if (file.endsWith('.gz')) {
+            // Read and decompress gzipped file
+            const compressedData = fs.readFileSync(filePath);
+            data = await new Promise((resolve, reject) => {
+              zlib.gunzip(compressedData, (err, result) => {
+                if (err) reject(err);
+                else resolve(result.toString('utf8'));
+              });
+            });
+          } else {
+            // Read regular file
+            data = fs.readFileSync(filePath, 'utf8');
+          }
+          
+          // Parse logs (each line is a JSON object)
+          logs = data.trim().split('\n').filter(line => line.trim()).map(line => {
+            try {
+              return JSON.parse(line);
+            } catch (e) {
+              console.error(`Error parsing log line from ${file}:`, line);
+              return { error: 'Invalid log entry', raw: line, file: file };
+            }
+          });
+          
+          // Save to cache for future use
+          try {
+            fs.writeFileSync(cacheFile, JSON.stringify(logs, null, 2));
+            console.log(`Cached ${logs.length} log entries for ${file}`);
+          } catch (cacheWriteErr) {
+            console.error(`Error writing cache file for ${file}:`, cacheWriteErr.message);
+            // Continue anyway, we have the data
+          }
+        }
+        
+        console.log(`Loaded ${logs.length} log entries from ${file}`);
+        allLogs = allLogs.concat(logs);
+      } catch (fileErr) {
+        console.error(`Error reading file ${file}:`, fileErr.message);
+        // Continue with other files even if one fails
+      }
+    }
+    
+    // Sort logs by timestamp (newest first)
+    allLogs.sort((a, b) => {
+      const timeA = new Date(a.timestamp || 0).getTime();
+      const timeB = new Date(b.timestamp || 0).getTime();
+      return timeB - timeA;
     });
+    
+    console.log(`Total logs loaded: ${allLogs.length}`);
+    
+    res.json({ logs: allLogs });
   } catch (err) {
     console.error('Error retrieving logs:', err.message);
     res.status(500).json({ error: 'Failed to retrieve logs' });
   }
 });
+
+// Function to clean up old cache files
+function cleanupLogCache() {
+  try {
+    const cacheFiles = fs.readdirSync(cacheDir);
+    const logFiles = fs.readdirSync(logsDir).filter(file => 
+      file === 'ghostwriter-access.log' || file.endsWith('.log.gz')
+    );
+    
+    // Remove cache files that don't have corresponding log files
+    cacheFiles.forEach(cacheFile => {
+      const originalFile = cacheFile.replace('.json', '');
+      if (!logFiles.includes(originalFile)) {
+        const cacheFilePath = path.join(cacheDir, cacheFile);
+        fs.unlinkSync(cacheFilePath);
+        console.log(`Removed orphaned cache file: ${cacheFile}`);
+      }
+    });
+  } catch (err) {
+    console.error('Error cleaning up cache:', err.message);
+  }
+}
+
+// Clean up cache on startup
+cleanupLogCache();
+
+// Clean up cache every hour
+setInterval(cleanupLogCache, 60 * 60 * 1000);
 
 // Add API endpoint to view rate limit stats
 app.get('/api/admin/ratelimits', secureAdminRoute, (req, res) => {

@@ -507,6 +507,12 @@
       // Apply filters
       applyFiltersBtn.addEventListener('click', () => {
         currentPage = 1;
+        // Add debug logging
+        console.log('Applying filters:');
+        console.log('Date filter:', dateFilter.value);
+        console.log('IP filter:', ipFilter.value);
+        console.log('Genre filter:', genreFilter.value);
+        console.log('Total logs:', logs.length);
         displayLogs();
       });
 
@@ -548,6 +554,22 @@
 
           const data = await response.json();
           logs = data.logs || [];
+          
+          // Debug: show what dates we have
+          console.log('Total logs fetched:', logs.length);
+          if (logs.length > 0) {
+            console.log('Sample log timestamps:');
+            logs.slice(0, 5).forEach((log, i) => {
+              console.log(`Log ${i + 1}: ${log.timestamp} (${new Date(log.timestamp).toLocaleDateString()})`);
+            });
+            
+            // Show date range
+            const dates = logs.map(log => new Date(log.timestamp));
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            console.log(`Date range: ${minDate.toLocaleDateString()} to ${maxDate.toLocaleDateString()}`);
+          }
+          
           currentPage = 1;
           displayLogs();
         } catch (err) {
@@ -570,10 +592,17 @@
           // Date filter - check if log timestamp is from the same day
           if (date) {
             const logDate = new Date(log.timestamp);
-            matchesFilters = matchesFilters && 
-              logDate.getFullYear() === date.getFullYear() &&
-              logDate.getMonth() === date.getMonth() &&
-              logDate.getDate() === date.getDate();
+            // Handle timezone differences by comparing date strings
+            const logDateStr = logDate.toISOString().split('T')[0];
+            const filterDateStr = date.toISOString().split('T')[0];
+            const dateMatches = logDateStr === filterDateStr;
+            
+            // Debug logging
+            if (dateFilter.value) {
+              console.log(`Log timestamp: ${log.timestamp}, Log date: ${logDateStr}, Filter date: ${filterDateStr}, Match: ${dateMatches}`);
+            }
+            
+            matchesFilters = matchesFilters && dateMatches;
           }
           
           // IP filter
@@ -588,6 +617,8 @@
           
           return matchesFilters;
         });
+
+        console.log(`Filtered logs: ${filteredLogs.length} out of ${logs.length}`);
 
         // Pagination
         const startIndex = (currentPage - 1) * logsPerPage;
