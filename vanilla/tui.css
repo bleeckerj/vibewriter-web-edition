@@ -299,7 +299,9 @@ h1::after {
   background-color: var(--control-bg);
   border-bottom: 1px solid var(--border-color);
   cursor: grab;
-  user-select: none;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -413,6 +415,10 @@ button:active {
 }
 
 /* Selection styling */
+::-moz-selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-text);
+}
 ::selection {
   background-color: var(--selection-bg);
   color: var(--selection-text);
@@ -431,7 +437,9 @@ button:active {
   font-size: 1.2rem;
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
   cursor: move;
-  user-select: none;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
   z-index: 1000;
   transition: all 0.2s;
 }

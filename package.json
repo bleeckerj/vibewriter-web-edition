@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "dev:full": "concurrently \"npm run watch:css\" \"npm run dev\"",
-    "watch:css": "postcss vanilla/tailwind.css -o vanilla/tailwind-build.css --watch",
+    "watch:css": "postcss vanilla/main.css -o vanilla/tailwind-build.css --watch",
     "start": "cd server && node index.js",
     "dev": "cd server && nodemon index.js",
     "install-all": "npm install && cd server && npm install",
-    "build:css": "postcss vanilla/tailwind.css -o vanilla/tailwind-build.css --env production"
+    "build:css": "postcss vanilla/main.css -o vanilla/tailwind-build.css --env production"
   },
   "workspaces": [
     "server"
@@ -16,7 +16,8 @@
   "dependencies": {
     "@tiptap/core": "^2.1.12",
     "@tiptap/starter-kit": "^2.1.12",
-    "express-rate-limit": "^7.5.1"
+    "express-rate-limit": "^7.5.1",
+    "postcss-import": "^16.1.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",

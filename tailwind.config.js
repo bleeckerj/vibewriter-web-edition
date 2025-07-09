@@ -6,6 +6,8 @@ module.exports = {
     "text-4xl",
     "text-5xl",
     "text-6xl",
+    "sm:text-2xl",
+    "text-3xl",
     // add any classes you want to always include
     ],
   theme: {
