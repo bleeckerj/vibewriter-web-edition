@@ -107,4 +107,3 @@ NONE
 ## Acknowledgments
 
 - Inspired by Ghostwriter's "Vibe Mode"
-- Built with ❤️ for creative writers everywhere
