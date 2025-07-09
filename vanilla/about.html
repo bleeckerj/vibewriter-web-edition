@@ -17,6 +17,7 @@
     </div>
     <nav class="space-x-4 text-center">
       <a href="/about.html" class="sm:text-[1em] text-gray-600 hover:font-bold transition">About</a>
+    <a href="/editor.html" id="vibewriter-link" class="sm:text-[1em] text-gray-600 hover:font-bold transition" style="display: none;">Vibewriter</a>
       <a href="index.html" class="sm:text-[1em] text-gray-600 hover:font-bold transition">Home</a>
     </nav>
   </header>
@@ -102,6 +103,25 @@
     <a href='https://nearfuturelaboratory.com/'><img src="/images/site/LaboratoryGuy_01__CIRCLE_80x80.webp" alt="Vibewriter Logo" style="margin: 16px auto; width: 60px;"class="mx-auto w-[60px] mt-4 shadow-lg"></a>
       <a href="/privacy" class="sm:text-[1em] text-indigo-800 hover:text-black transition">Privacy Policy</a>
   </footer>
+    
+  <script type="module">
+    import { auth, onAuthStateChanged } from './firebase-auth.js';
+
+    onAuthStateChanged(auth, (user) => {
+      const vibewriterLink = document.getElementById('vibewriter-link');
+      if (user) {
+        // User is signed in.
+        if (vibewriterLink) {
+          vibewriterLink.style.display = 'inline';
+        }
+      } else {
+        // User is signed out.
+        if (vibewriterLink) {
+          vibewriterLink.style.display = 'none';
+        }
+      }
+    });
+  </script>
     
 </body>
 </html>

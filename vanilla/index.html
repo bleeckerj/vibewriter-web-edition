@@ -19,10 +19,11 @@
   <header class="w-full py-6 px-4 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
     <div class="flex items-center space-x-3">
       <!-- <img src="/images/vibewriter-preview.png" alt="Vibewriter Logo" class="h-10 w-10 rounded-full shadow-lg"> -->
-      <span class="text-[1.1em] sm:text-2xl font-bold text-white tracking-tight">Vibewriter</span>
+      <div class="text-[1.1em] sm:text-2xl font-bold text-white tracking-tight">Vibewriter</div>
     </div>
     <nav class="space-x-4 text-center">
       <a href="/about.html" class="sm:text-[1em] text-indigo-200 hover:text-white transition">About</a>
+      <a href="/editor.html" id="vibewriter-link" class="sm:text-[1em] text-gray-600 hover:font-bold transition" style="display: none;">Vibewriter</a>
       <a href="index.html" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Home</a>
     </nav>
   </header>
@@ -56,5 +57,24 @@
     <a href='https://nearfuturelaboratory.com/'><img src="/images/site/LaboratoryGuy_01__CIRCLE_80x80.webp" alt="Vibewriter Logo" style="margin: 16px auto; width: 60px;"class="mx-auto w-[60px] mt-4 shadow-lg"></a>
       <a href="/privacy" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Privacy Policy</a>
   </footer>
+  <script type="module">
+    import { auth, onAuthStateChanged } from './firebase-auth.js';
+
+    const vibewriterLink = document.getElementById('vibewriter-link');
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        // User is signed in, show the link
+        if (vibewriterLink) {
+          vibewriterLink.style.display = 'inline';
+        }
+      } else {
+        // User is signed out, keep the link hidden
+        if (vibewriterLink) {
+          vibewriterLink.style.display = 'none';
+        }
+      }
+    });
+  </script>
 </body>
 </html>
