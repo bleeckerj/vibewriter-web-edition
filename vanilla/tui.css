@@ -468,10 +468,10 @@ button:active {
   color: var(--text-color);
 }
 
-/* Labels */
-.tui-mode label {
+/* Labels - Increased specificity */
+.tui-mode .config-controls label {
   font-family: var(--font-3270);
-  color: var(--dim-text);
+  color: var(--toolbar-text, #00ff00);
   font-size: 0.8rem;
 }
 
