@@ -589,17 +589,21 @@
         const filteredLogs = sortedLogs.filter(log => {
           let matchesFilters = true;
           
-          // Date filter - check if log timestamp is from the same day
+          // Date filter - check if log timestamp is from the same day in local timezone
           if (date) {
             const logDate = new Date(log.timestamp);
-            // Handle timezone differences by comparing date strings
-            const logDateStr = logDate.toISOString().split('T')[0];
-            const filterDateStr = date.toISOString().split('T')[0];
+            // Compare dates in local timezone, not UTC
+            const logDateStr = logDate.getFullYear() + '-' + 
+                               String(logDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                               String(logDate.getDate()).padStart(2, '0');
+            const filterDateStr = date.getFullYear() + '-' + 
+                                  String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+                                  String(date.getDate()).padStart(2, '0');
             const dateMatches = logDateStr === filterDateStr;
             
             // Debug logging
             if (dateFilter.value) {
-              console.log(`Log timestamp: ${log.timestamp}, Log date: ${logDateStr}, Filter date: ${filterDateStr}, Match: ${dateMatches}`);
+              console.log(`Log timestamp: ${log.timestamp}, Log local date: ${logDateStr}, Filter date: ${filterDateStr}, Match: ${dateMatches}`);
             }
             
             matchesFilters = matchesFilters && dateMatches;
@@ -644,14 +648,16 @@
           const logEntry = document.createElement('div');
           logEntry.className = 'log-entry';
 
-          // Format timestamp
-          const timestamp = new Date(log.timestamp).toLocaleString();
+          // Format timestamp with timezone
+          const logDate = new Date(log.timestamp);
+          const timestamp = logDate.toLocaleString();
+          const timezone = logDate.toLocaleString('en-US', { timeZoneName: 'short' }).split(' ').pop();
 
           // Create log header
           const logHeader = document.createElement('div');
           logHeader.className = 'log-header';
           logHeader.innerHTML = `
-            <span>Time: ${timestamp}</span>
+            <span>Time: ${timestamp} (${timezone})</span>
             <span>IP: ${log.ip || 'Unknown'}</span>
           `;
           logEntry.appendChild(logHeader);

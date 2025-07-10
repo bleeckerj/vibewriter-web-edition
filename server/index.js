@@ -43,11 +43,9 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
 }
 
-// Create cache directory for decompressed log files
-const cacheDir = path.join(__dirname, 'cache');
-if (!fs.existsSync(cacheDir)) {
-  fs.mkdirSync(cacheDir);
-}
+// In-memory cache for decompressed log data
+const logCache = new Map();
+const logFileMtimes = new Map();
 
 // Configure rate limiters for different endpoints
 const apiLimiter = rateLimit({
@@ -313,26 +311,19 @@ app.get('/api/admin/logs', secureAdminRoute, async (req, res) => {
       console.log(`Processing log file: ${file}`);
       
       try {
-        // Check if we have a cached version
-        const cacheFile = path.join(cacheDir, `${file}.json`);
+        const currentStat = fs.statSync(filePath);
+        const currentMtime = currentStat.mtime.getTime();
+        
+        // Check if we have valid cached data
         let logs = [];
         let useCache = false;
         
-        // Check if cache exists and is newer than the original file
-        if (fs.existsSync(cacheFile)) {
-          const originalStat = fs.statSync(filePath);
-          const cacheStat = fs.statSync(cacheFile);
-          
-          // Cache is valid if it's newer than the original file
-          if (cacheStat.mtime > originalStat.mtime) {
+        if (logCache.has(file) && logFileMtimes.has(file)) {
+          const cachedMtime = logFileMtimes.get(file);
+          if (cachedMtime === currentMtime) {
             console.log(`Using cached data for ${file}`);
-            try {
-              logs = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
-              useCache = true;
-            } catch (cacheErr) {
-              console.error(`Error reading cache file for ${file}:`, cacheErr.message);
-              // Cache is corrupted, we'll regenerate it
-            }
+            logs = logCache.get(file);
+            useCache = true;
           } else {
             console.log(`Cache for ${file} is outdated, regenerating...`);
           }
@@ -366,14 +357,10 @@ app.get('/api/admin/logs', secureAdminRoute, async (req, res) => {
             }
           });
           
-          // Save to cache for future use
-          try {
-            fs.writeFileSync(cacheFile, JSON.stringify(logs, null, 2));
-            console.log(`Cached ${logs.length} log entries for ${file}`);
-          } catch (cacheWriteErr) {
-            console.error(`Error writing cache file for ${file}:`, cacheWriteErr.message);
-            // Continue anyway, we have the data
-          }
+          // Store in memory cache
+          logCache.set(file, logs);
+          logFileMtimes.set(file, currentMtime);
+          console.log(`Cached ${logs.length} log entries for ${file} in memory`);
         }
         
         console.log(`Loaded ${logs.length} log entries from ${file}`);
@@ -400,21 +387,39 @@ app.get('/api/admin/logs', secureAdminRoute, async (req, res) => {
   }
 });
 
-// Function to clean up old cache files
+// Function to clear all cached log data
+function clearLogCache() {
+  const cacheSize = logCache.size;
+  logCache.clear();
+  logFileMtimes.clear();
+  console.log(`Cleared in-memory cache (${cacheSize} entries)`);
+}
+
+// Admin endpoint to clear log cache
+app.post('/api/admin/clear-cache', secureAdminRoute, (req, res) => {
+  try {
+    clearLogCache();
+    res.json({ success: true, message: 'Cache cleared successfully' });
+  } catch (err) {
+    console.error('Error clearing cache:', err.message);
+    res.status(500).json({ error: 'Failed to clear cache' });
+  }
+});
+
+// Function to clean up in-memory cache for files that no longer exist
 function cleanupLogCache() {
   try {
-    const cacheFiles = fs.readdirSync(cacheDir);
     const logFiles = fs.readdirSync(logsDir).filter(file => 
       file === 'ghostwriter-access.log' || file.endsWith('.log.gz')
     );
     
-    // Remove cache files that don't have corresponding log files
-    cacheFiles.forEach(cacheFile => {
-      const originalFile = cacheFile.replace('.json', '');
-      if (!logFiles.includes(originalFile)) {
-        const cacheFilePath = path.join(cacheDir, cacheFile);
-        fs.unlinkSync(cacheFilePath);
-        console.log(`Removed orphaned cache file: ${cacheFile}`);
+    // Remove cache entries for files that no longer exist
+    const cacheKeys = Array.from(logCache.keys());
+    cacheKeys.forEach(cacheKey => {
+      if (!logFiles.includes(cacheKey)) {
+        logCache.delete(cacheKey);
+        logFileMtimes.delete(cacheKey);
+        console.log(`Removed cache entry for deleted file: ${cacheKey}`);
       }
     });
   } catch (err) {
