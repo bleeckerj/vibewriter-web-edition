@@ -846,7 +846,7 @@ function initStyleSwitcher() {
   // Apply the saved UI mode
   if (uiMode === 'tui') {
     styleSheet.href = 'tui.css';
-    styleSwitcher.textContent = 'Standard Style';
+    styleSwitcher.textContent = 'STD';
     document.body.classList.add('tui-mode');
     // Apply green filter to emoji in TUI Style
     document.querySelectorAll('.drag-icon').forEach(el => {
@@ -854,7 +854,7 @@ function initStyleSwitcher() {
     });
   } else {
     styleSheet.href = 'style.css';
-    styleSwitcher.textContent = 'TUI Style';
+    styleSwitcher.textContent = 'TUI';
     document.body.classList.remove('tui-mode');
   }
   
@@ -863,7 +863,7 @@ function initStyleSwitcher() {
     if (styleSheet.href.includes('tui.css')) {
       // Switch to standard mode
       styleSheet.href = 'style.css';
-      styleSwitcher.textContent = 'TUI Style';
+      styleSwitcher.textContent = 'TUI';
       document.body.classList.remove('tui-mode');
       uiMode = 'standard';
       // Remove green filter from emoji
@@ -873,7 +873,7 @@ function initStyleSwitcher() {
     } else {
       // Switch to TUI Style
       styleSheet.href = 'tui.css';
-      styleSwitcher.textContent = 'Standard Style';
+      styleSwitcher.textContent = 'STD';
       document.body.classList.add('tui-mode');
       uiMode = 'tui';
       // Apply green filter to emoji in TUI Style

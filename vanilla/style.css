@@ -365,8 +365,46 @@ h1 {
   border-radius: 0 0 2px 0;
 }
 
+/* Only animate in TUI mode */
+.tui-mode .resize-handle-se {
+  animation: resize-handle-glow 0.75s ease-in-out infinite;
+  border-radius: 0px 0px 0px 0px;
+
+}
+
 .resize-handle-se:hover {
   opacity: 0.6;
+}
+
+/* Only animate hover in TUI mode */
+.tui-mode .resize-handle-se:hover {
+  animation: resize-handle-glow-hover 0.5s ease-in-out infinite;
+}
+
+@keyframes resize-handle-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(0, 255, 0, 0.6), 0 0 16px rgba(0, 255, 0, 0.3);
+    background: rgba(0, 255, 0, 0.1);
+    opacity: 0.4;
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(0, 255, 0, 1), 0 0 40px rgba(0, 255, 0, 0.8), 0 0 60px rgba(0, 255, 0, 0.4);
+    background: rgba(0, 255, 0, 1);
+    opacity: 0.6;
+  }
+}
+
+@keyframes resize-handle-glow-hover {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.8), 0 0 25px rgba(0, 255, 0, 0.5);
+    background: rgba(0, 255, 0, 0.4);
+    opacity: 0.8;
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 255, 0, 1), 0 0 50px rgba(0, 255, 0, 0.9), 0 0 70px rgba(0, 255, 0, 0.6);
+    background: rgba(0, 255, 0, 0.8);
+    opacity: 1;
+  }
 }
 
 /* When dragging or resizing, ensure the editor maintains scroll */
@@ -421,10 +459,10 @@ h1 {
   cursor: not-allowed;
 }
 
-.floating-timer {
+/* .floating-timer {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 48px;
+  right: 48px;
   background: rgba(0,0,0,0.8);
   border: 1px solid #555;
   box-shadow: 0 2px 10px rgba(0,0,0,0.3);
@@ -438,7 +476,7 @@ h1 {
   cursor: grab;
   user-select: none;
   transition: box-shadow 0.3s, background-color 0.3s, border 0.3s, transform 0.2s;
-}
+} */
 .floating-timer:active {
   cursor: grabbing;
   box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
@@ -459,19 +497,21 @@ h1 {
 /* Timer styles */
 .floating-timer {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  left: 40px;
+  top: 60px;
   background-color: rgba(0, 0, 0, 0.6);
   color: white;
   padding: 8px 16px;
   border-radius: 4px;
-  font-family: var(--font-mono);
+  font-family: '3270';
   font-size: 1.2rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   cursor: move;
   user-select: none;
   z-index: 1000;
   transition: all 0.2s;
+  transition: box-shadow 0.3s, background-color 0.3s, border 0.3s, transform 0.2s;
+
 }
 
 .timer-active {

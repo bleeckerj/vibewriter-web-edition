@@ -113,8 +113,18 @@
   --toolbar-text: #00ff00;
 }
 
+.tui-mode footer {
+  background: #000;
+  color: #00ff00;
+  font-family: '3270 Mono', monospace;
+  font-size: 0.85rem;
+  padding: 10px;
+  text-align: center;
+  border-top: 1px solid #444;
+}
+
 /* Top menu bar */
-.top-menu-bar {
+.tui-mode .top-menu-bar {
   position: fixed;
   top: 0;
   left: 0;
