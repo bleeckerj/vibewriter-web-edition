@@ -318,7 +318,7 @@ h1 {
 }
 
 #editor-container {
-  max-width: 700px;
+  max-width: calc(100vw - 32px); /* Never exceed viewport width minus padding */
   margin: 0 auto;
   background: #fff;
   border: 1px solid #ccc;
@@ -700,8 +700,8 @@ h1 {
 
 /* Adjust the editor container style */
 #editor-container {
-  max-width: none; /* Remove the max-width constraint to allow resizing */
-  width: 700px; /* Set an initial width */
+  max-width: calc(100vw - 32px); /* Never exceed viewport width minus padding */
+  width: min(700px, calc(100vw - 32px)); /* Initial width, but constrained by viewport */
   height: auto; /* Height will adjust to content */
   position: absolute; /* Changed to absolute for positioning by JavaScript */
   transition: none; /* Remove transition to make resizing smoother */

@@ -189,7 +189,7 @@ app.use('/api/', apiLimiter);
 
 // LLM API endpoint
 app.post('/api/llm', llmLimiter, async (req, res) => {
-  const { system, prompt, aiLength = 'medium' } = req.body;
+  const { system, prompt, aiLength = 'medium', userWordCount = 0 } = req.body;
   
   if (!system || !prompt) {
     return res.status(400).json({ 
@@ -201,22 +201,33 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
     console.log('Sending request to OpenAI API...');
     console.log('Prompt length:', prompt.length, 'characters');
     console.log('AI length setting:', aiLength);
+    console.log('User word count:', userWordCount, 'words');
     
     // Use different max_tokens based on whether this is initial or continuation
     const isInitial = !prompt.includes('Continue this story');
     
-    // Determine token limits based on AI length setting
+    // Determine token limits based on user word count if available, otherwise use AI length setting
     let maxTokens;
-    switch (aiLength) {
-      case 'short':
-      maxTokens = isInitial ? 30 : 40; // About one sentence
-      break;
-      case 'long':
-      maxTokens = isInitial ? 200 : 250; // ~150 words
-      break;
-      case 'medium':
-      default:
-      maxTokens = isInitial ? 120 : 150; // ~80 words
+    if (userWordCount > 0) {
+      // Match the user's word count, with a reasonable minimum and maximum
+      // Approximate token-to-word ratio is about 1.3 tokens per word
+      const tokensFromWords = Math.ceil(userWordCount * 1.3);
+      maxTokens = Math.max(10, Math.min(200, tokensFromWords)); // Min 10, max 200 tokens
+      console.log(`Using user word count: ${userWordCount} words → ${maxTokens} tokens`);
+    } else {
+      // Fall back to original AI length logic
+      switch (aiLength) {
+        case 'short':
+          maxTokens = isInitial ? 30 : 40; // About one sentence
+          break;
+        case 'long':
+          maxTokens = isInitial ? 140 : 180; // ~150 words
+          break;
+        case 'medium':
+        default:
+          maxTokens = isInitial ? 80 : 100; // ~80 words
+      }
+      console.log(`Using AI length setting: ${aiLength} → ${maxTokens} tokens`);
     }
     
     console.log(`Using max_tokens: ${maxTokens}`);
@@ -236,7 +247,7 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
     
     // Log the conversation
     logConversation(req, {
-      metadata: { system, aiLength },
+      metadata: { system, aiLength, userWordCount },
       conversation: [{ role: 'user', content: prompt }, { role: 'assistant', content: response.choices[0].message.content }],
       settings: { maxTokens, temperature: isInitial ? 0.9 : 0.8 }
     });

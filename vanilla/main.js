@@ -9,6 +9,8 @@ let isTimerActive = false;
 let hasUserStartedTyping = false; // Track if user has started typing in the current turn
 let conversation = []; // Track conversation for logging
 let uiMode = localStorage.getItem('ghostwriter-ui-mode') || 'standard'; // 'standard' or 'tui'
+let contentBeforeUserTurn = ''; // Track content before user starts typing
+let userWordCount = 0; // Track word count of user's latest addition
 
 // Genre prompts
 const genrePrompts = {
@@ -316,6 +318,11 @@ function startUserTurn() {
   console.log("Starting user's turn");
   isUserTurn = true;
   hasUserStartedTyping = false; // Reset for each new user turn
+  
+  // Capture content before user starts typing
+  const currentHtml = editor.getHTML();
+  contentBeforeUserTurn = stripHtml(currentHtml);
+  
   updateTurnIndicator(true);
   editor.setEditable(true);
 
@@ -348,6 +355,15 @@ async function endUserTurn() {
   hasUserStartedTyping = false; // Reset typing state
   updateTurnIndicator(false);
   editor.setEditable(false); // Prevent further editing
+  
+  // Calculate user's word count for this turn
+  const currentHtml = editor.getHTML();
+  const currentPlainText = stripHtml(currentHtml);
+  const userAddedText = currentPlainText.substring(contentBeforeUserTurn.length);
+  userWordCount = countWords(userAddedText);
+  
+  console.log(`User added ${userWordCount} words this turn`);
+  logToConsole(`User added ${userWordCount} words this turn`, 'info');
   
   // Ensure timer is stopped and reset
   if (window.timerControls) {
@@ -397,21 +413,29 @@ async function getLLMResponse(genre, existingContent = '') {
   const aiLengthSelect = document.getElementById('ai-length-select');
   const aiLength = aiLengthSelect.value;
   
-  // Determine word count based on selected length
+  // Determine word count based on user's input or selected length
   let wordCount;
-  switch (aiLength) {
-    case 'short':
-      wordCount = 'one sentence';
-      break;
-    case 'long':
-      wordCount = '~150';
-      break;
-    case 'medium':
-    default:
-      wordCount = '~80';
+  if (userWordCount > 0) {
+    // Use user's word count for matching response length
+    wordCount = `approximately ${userWordCount}`;
+    console.log(`Using user word count: ${userWordCount} words`);
+    logToConsole(`AI will respond with ~${userWordCount} words to match your input`, 'success');
+  } else {
+    // Fall back to selected AI length
+    switch (aiLength) {
+      case 'short':
+        wordCount = 'one sentence';
+        break;
+      case 'long':
+        wordCount = '~150';
+        break;
+      case 'medium':
+      default:
+        wordCount = '~80';
+    }
+    console.log(`Using AI length: ${aiLength} (${wordCount} words)`);
+    logToConsole(`Using AI length setting: ${aiLength} (${wordCount} words)`, 'info');
   }
-  
-  console.log(`Using AI length: ${aiLength} (${wordCount} words)`);
   
   const systemPrompt = `You are a creative writer participating in a back-and-forth writing game. ${existingContent ? 'The user has written some text, and you must now continue the story.' : 'You will provide an inspiring prose-based opening to a creative writing story.'} Write in the specified genre style. Your contribution should be about ${wordCount} words. Only provide the text that continues or starts the story. Do not provide commentary, questions, or indicate that you are an AI. Do not use quotation marks around your text unless they are part of the story dialogue. Write compelling, vivid text that builds on what came before.`;
   
@@ -440,7 +464,8 @@ async function getLLMResponse(genre, existingContent = '') {
       body: JSON.stringify({ 
         system: systemPrompt, 
         prompt: userPrompt, 
-        aiLength: aiLength 
+        aiLength: aiLength,
+        userWordCount: userWordCount // Add user's word count
       })
     });
 
@@ -1223,6 +1248,24 @@ function handleSaveButtonClick() {
   URL.revokeObjectURL(url);
   
   console.log(`Content saved as ${filename}`);
+}
+
+// Function to count words in text
+function countWords(text) {
+  if (!text || typeof text !== 'string') return 0;
+  return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+}
+
+// Add console logging for word count matching
+function logToConsole(message, type = 'info') {
+  const consoleMessages = document.getElementById('console-messages');
+  if (consoleMessages) {
+    const messageElement = document.createElement('div');
+    messageElement.className = `console-message ${type}`;
+    messageElement.textContent = message;
+    consoleMessages.appendChild(messageElement);
+    consoleMessages.scrollTop = consoleMessages.scrollHeight;
+  }
 }
 
 // Call this function after the page loads
