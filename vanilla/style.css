@@ -418,7 +418,6 @@ h1 {
 #editor-container #editor {
   overflow-y: auto;
   overflow-x: hidden;
-  width: 100%;
 }
 
 /* Make sure the ProseMirror instance also expands to fill the editor */
@@ -662,11 +661,22 @@ h1 {
 
 /* Adjust the editor container style */
 #editor-container {
-  max-width: calc(100vw - 32px); /* Never exceed viewport width minus padding */
-  width: min(700px, calc(100vw - 32px)); /* Initial width, but constrained by viewport */
-  height: auto; /* Height will adjust to content */
-  position: absolute; /* Changed to absolute for positioning by JavaScript */
-  transition: none; /* Remove transition to make resizing smoother */
+  max-width: calc(100vw - 32px);
+  width: min(700px, calc(100vw - 32px));
+  height: auto;
+  position: absolute;
+  transition: none;
+}
+
+/* Prevent width recalculation after resize operations */
+#editor-container[data-resized="true"] {
+  width: var(--resized-width) !important;
+  max-width: none !important;
+}
+
+/* Also during drag operations */
+#editor-container.dragging {
+  max-width: none !important;
 }
 
 /* Custom dropdown styling */

@@ -730,7 +730,7 @@ function makeEditorDraggable() {
   
   // Rest of the drag functionality...
   let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-  let originalWidth = null;
+  //let originalWidth = null;
   
   // Function to constrain position within viewport bounds
   function constrainToViewport(left, top, width, height) {
@@ -890,9 +890,9 @@ function makeEditorDraggable() {
     pos4 = e.clientY;
     
     // Store the original width before positioning changes
-    if (!originalWidth) {
-      originalWidth = editorContainer.offsetWidth;
-    }
+    // if (!originalWidth) {
+    //   originalWidth = editorContainer.offsetWidth;
+    // }
     
     editorContainer.classList.add('dragging');
     
@@ -924,7 +924,7 @@ function makeEditorDraggable() {
     editorContainer.style.top = constrainedPos.top + 'px';
     editorContainer.style.left = constrainedPos.left + 'px';
     editorContainer.style.margin = '0';
-    editorContainer.style.width = originalWidth + 'px'; // Set fixed width to maintain size
+    //editorContainer.style.width = originalWidth + 'px'; // Set fixed width to maintain size
   }
   
   function closeDragElement() {
