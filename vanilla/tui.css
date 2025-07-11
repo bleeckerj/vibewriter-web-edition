@@ -446,6 +446,8 @@ button:hover.disabled {
   position: fixed;
   right: 20px;
   bottom: 20px;
+  width: fit-content;
+  height: fit-content;
   background-color: rgba(0, 0, 0, 0.4);
   color: #00ff00;
   padding: 8px 16px;
