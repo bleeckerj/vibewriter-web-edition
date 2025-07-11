@@ -52,11 +52,11 @@
   <!-- <h1>Vibe Mode Writing Tool</h1> -->
   
   <!-- Editor container with two-row toolbar -->
-  <div id="editor-container">
+  <div id="editor-container" class="min-w-0 sm:min-w-[530px]">
     <!-- Editor toolbar top row: hamburger, start button, turn indicator, style switcher -->
     <div class="editor-toolbar top-row">
       <div class="left-controls">
-        <button id="menu-button" class="toolbar-btn">☰</button>
+        <button id="menu-button" class="font-['3270'] toolbar-btn">•</button>
         <button id="startBtn" class="brutal-btn tui-btn">START</button>
         <button id="saveBtn" class="brutal-btn tui-btn">SAVE</button>
       </div>
@@ -98,9 +98,10 @@
         <div class="control-group">
           <label for="ai-length-select">Muse</label>
           <select id="ai-length-select">
-            <option value="short" selected>Short</option>
-            <option value="medium">Medium</option>
+            <option value="short">Short</option>
+            <option value="medium" selected>Medium</option>
             <option value="long">Long</option>
+            <option value="match">Match User</option>
           </select>
         </div>
       </div>

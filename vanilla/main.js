@@ -4,7 +4,9 @@ import StarterKit from '@tiptap/starter-kit'
 // Initialize editor variable at the module level
 let editor;
 let currentContent = ''; // Track content for LLM context
-let isUserTurn = false; // Track whose turn it is (LLM or user)
+let currentTurn = 'ai'; // Track whose turn it is
+let isUserTurn = false; // Keep for backward compatibility
+let isEditing = false; // Add this missing variable
 let isTimerActive = false;
 let hasUserStartedTyping = false; // Track if user has started typing in the current turn
 let conversation = []; // Track conversation for logging
@@ -36,14 +38,14 @@ const genrePrompts = {
 function initFloatingTimer() {
   const timer = document.getElementById('floating-timer');
   let offsetX, offsetY, isDragging = false;
-
+  
   timer.addEventListener('mousedown', (e) => {
     isDragging = true;
     offsetX = e.clientX - timer.offsetLeft;
     offsetY = e.clientY - timer.offsetTop;
     timer.style.cursor = 'grabbing';
   });
-
+  
   document.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
     timer.style.left = (e.clientX - offsetX) + 'px';
@@ -51,7 +53,7 @@ function initFloatingTimer() {
     timer.style.right = 'auto';
     timer.style.bottom = 'auto';
   });
-
+  
   document.addEventListener('mouseup', () => {
     isDragging = false;
     timer.style.cursor = 'move';
@@ -265,6 +267,10 @@ async function handleStartButtonClick() {
   // Reset state - starting fresh
   isUserTurn = false;
   hasUserStartedTyping = false;
+  userWordCount = 0; // Clear previous word count
+  contentBeforeUserTurn = ''; // Clear previous content tracking
+  conversation = []; // Clear conversation history
+  
   updateTurnIndicator(false);
   
   // Reset timer if it's initialized
@@ -294,6 +300,8 @@ async function handleStartButtonClick() {
   
   const startBtn = document.getElementById('startBtn');
   
+  console.log('Starting new session - word count reset to 0');
+  
   // Check if we're in Free Writing mode
   if (selectedGenre === 'freewriting') {
     console.log("Free Writing mode selected - user starts first");
@@ -304,6 +312,10 @@ async function handleStartButtonClick() {
   } else {
     // For all other genres, AI starts with a prompt
     startBtn.disabled = true;
+    
+    // Force button to return to 'out' state when disabled
+    startBtn.classList.remove('button-in');
+    startBtn.classList.add('button-out');
     
     // Get first prompt from LLM
     await getLLMResponse(selectedGenre);
@@ -316,16 +328,18 @@ async function handleStartButtonClick() {
 // Start the user's turn
 function startUserTurn() {
   console.log("Starting user's turn");
+  currentTurn = 'user';
   isUserTurn = true;
-  hasUserStartedTyping = false; // Reset for each new user turn
+  isEditing = true;
+  hasUserStartedTyping = false;
   
-  // Capture content before user starts typing
-  const currentHtml = editor.getHTML();
-  contentBeforeUserTurn = stripHtml(currentHtml);
+  // Capture content before user starts typing - convert to plain text
+  contentBeforeUserTurn = stripHtml(editor.getHTML()); // Fixed: use stripHtml instead of stripHtml
+  console.log('Content before user turn:', contentBeforeUserTurn);
   
   updateTurnIndicator(true);
   editor.setEditable(true);
-
+  
   // Make sure the timer is reset and showing full time
   if (window.timerControls && typeof window.timerControls.reset === 'function') {
     window.timerControls.reset();
@@ -345,53 +359,95 @@ function startUserTurn() {
 
 // End the user's turn and get LLM response
 async function endUserTurn() {
-  if (!isUserTurn) {
-    console.log("Not user's turn, skipping endUserTurn");
+  console.log("=== End User Turn Called ===");
+  
+  if (currentTurn !== 'user') {
+    console.log("Not user's turn, exiting");
     return;
   }
   
-  console.log("Ending user's turn");
+  currentTurn = 'ai';
   isUserTurn = false;
-  hasUserStartedTyping = false; // Reset typing state
+  isEditing = false;
+  
+  const startBtn = document.getElementById('startBtn');
+  if (startBtn) startBtn.disabled = true;
+  
   updateTurnIndicator(false);
-  editor.setEditable(false); // Prevent further editing
   
-  // Calculate user's word count for this turn
-  const currentHtml = editor.getHTML();
-  const currentPlainText = stripHtml(currentHtml);
-  const userAddedText = currentPlainText.substring(contentBeforeUserTurn.length);
-  userWordCount = countWords(userAddedText);
+  // Calculate user's word count by comparing text content (not HTML)
+  const contentBeforeUser = contentBeforeUserTurn || '';
+  const contentAfterUser = editor.getHTML();
   
-  console.log(`User added ${userWordCount} words this turn`);
-  logToConsole(`User added ${userWordCount} words this turn`, 'info');
+  // Debug logging
+  console.log('=== Word Count Calculation ===');
+  console.log('Before user turn (text):', contentBeforeUser);
+  console.log('After user turn (text):', contentAfterUser);
+  console.log('Length before:', contentBeforeUser.length);
+  console.log('Length after:', contentAfterUser.length);
   
-  // Ensure timer is stopped and reset
-  if (window.timerControls) {
-    if (typeof window.timerControls.stop === 'function') {
-      console.log("Stopping timer");
-      window.timerControls.stop();
+  // Calculate words added by finding the difference
+  let userAddedText = '';
+  if (contentAfterUser.length > contentBeforeUser.length) {
+    // User added content - find what was added
+    if (contentAfterUser.startsWith(contentBeforeUser)) {
+      // Content was added at the end
+      userAddedText = contentAfterUser.substring(contentBeforeUser.length).trim();
+      console.log('Content added at end:', userAddedText);
+    } else if (contentAfterUser.endsWith(contentBeforeUser)) {
+      // Content was added at the beginning
+      userAddedText = contentAfterUser.substring(0, contentAfterUser.length - contentBeforeUser.length).trim();
+      console.log('Content added at beginning:', userAddedText);
+    } else {
+      // Content was inserted in the middle or text was modified
+      console.log('Content was inserted/modified, using word count difference');
+      const wordsBeforeUser = contentBeforeUser ? countWords(contentBeforeUser) : 0;
+      const wordsAfterUser = contentAfterUser ? countWords(contentAfterUser) : 0;
+      const wordsDifference = wordsAfterUser - wordsBeforeUser;
+      
+      console.log('Words before:', wordsBeforeUser);
+      console.log('Words after:', wordsAfterUser);
+      console.log('Word difference:', wordsDifference);
+      
+      if (wordsDifference > 0) {
+        userWordCount = wordsDifference;
+        logToConsole(`User added approximately ${userWordCount} words (calculated from word count difference)`);
+      } else {
+        userWordCount = 0;
+        logToConsole('User did not add any words');
+      }
+      
+      // Continue with LLM response
+      setTimeout(() => {
+        // Get the current editor content to provide context
+        const currentEditorContent = editor.getHTML();
+        getLLMResponse(getSelectedGenre(), currentEditorContent);
+      }, 500);
+      return;
     }
-    
-    if (typeof window.timerControls.reset === 'function') {
-      console.log("Resetting timer");
-      window.timerControls.reset();
-    }
+  } else {
+    // User didn't add content or removed content
+    userAddedText = '';
+    console.log('No content added or content was removed');
   }
   
-  // Update button state while LLM is working
-  const startBtn = document.getElementById('startBtn');
-  startBtn.disabled = true;
+  userWordCount = userAddedText ? countWords(userAddedText) : 0;
   
-  // Get the selected genre
-  const genreSelect = document.getElementById('genre-select');
-  const selectedGenre = genreSelect.value;
+  console.log('Final user word count:', userWordCount);
+  console.log('User added text:', userAddedText);
   
-  // Get continuation from LLM based on current content
-  await getLLMResponse(selectedGenre, currentContent);
+  if (userWordCount > 0) {
+    logToConsole(`User added ${userWordCount} words: "${userAddedText.substring(0, 100)}${userAddedText.length > 100 ? '...' : ''}"`);
+  } else {
+    logToConsole('User did not add any words');
+  }
   
-  // After LLM response, it's user's turn again
-  //startBtn.textContent = 'START';
-  startBtn.disabled = false;
+  // Continue with LLM response after a short delay
+  setTimeout(() => {
+    // Get the current editor content to provide context
+    const currentEditorContent = editor.getHTML();
+    getLLMResponse(getSelectedGenre(), currentEditorContent);
+  }, 500);
 }
 
 // Get response from LLM
@@ -415,23 +471,28 @@ async function getLLMResponse(genre, existingContent = '') {
   
   // Determine word count based on user's input or selected length
   let wordCount;
-  if (userWordCount > 0) {
+  if (aiLength === 'match' && userWordCount > 0) {
     // Use user's word count for matching response length
     wordCount = `approximately ${userWordCount}`;
     console.log(`Using user word count: ${userWordCount} words`);
     logToConsole(`AI will respond with ~${userWordCount} words to match your input`, 'success');
+  } else if (aiLength === 'match' && userWordCount === 0) {
+    // If "match" is selected but no user word count, fall back to medium
+    wordCount = '~80';
+    console.log(`Match selected but no user input yet, falling back to medium length`);
+    logToConsole(`Match selected but no user input yet, using medium length`, 'info');
   } else {
-    // Fall back to selected AI length
+    // Use selected AI length
     switch (aiLength) {
       case 'short':
-        wordCount = 'one sentence';
-        break;
+      wordCount = 'one sentence';
+      break;
       case 'long':
-        wordCount = '~150';
-        break;
+      wordCount = '~150';
+      break;
       case 'medium':
       default:
-        wordCount = '~80';
+      wordCount = '~80';
     }
     console.log(`Using AI length: ${aiLength} (${wordCount} words)`);
     logToConsole(`Using AI length setting: ${aiLength} (${wordCount} words)`, 'info');
@@ -452,27 +513,33 @@ async function getLLMResponse(genre, existingContent = '') {
   if (existingContent) {
     addToConversation('user', stripHtml(existingContent));
   }
-
+  
   const responseDiv = document.getElementById('response');
   responseDiv.textContent = 'Loading...';
-
+  
   try {
     // Call your backend API
+    const requestBody = { 
+      system: systemPrompt, 
+      prompt: userPrompt, 
+      aiLength: aiLength
+    };
+    
+    // Only include user word count if "match" is selected
+    if (aiLength === 'match') {
+      requestBody.userWordCount = userWordCount;
+    }
+    
     const res = await fetch('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        system: systemPrompt, 
-        prompt: userPrompt, 
-        aiLength: aiLength,
-        userWordCount: userWordCount // Add user's word count
-      })
+      body: JSON.stringify(requestBody)
     });
-
+    
     if (!res.ok) {
       throw new Error(`API error: ${res.status}`);
     }
-
+    
     const data = await res.json();
     responseDiv.textContent = ''; // Clear loading message
     
@@ -481,7 +548,7 @@ async function getLLMResponse(genre, existingContent = '') {
     
     // Log conversation to server after AI responds
     logConversation();
-
+    
     // Use emanateStringToEditor to display response
     await emanateStringToEditor(data.text, 30, () => {
       console.log('Emanation complete');
@@ -496,10 +563,18 @@ async function getLLMResponse(genre, existingContent = '') {
   }
 }
 
-// Strip HTML tags for sending clean text to LLM
+// Add the missing stripHtml function (note the capital HTML)
 function stripHtml(html) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || '';
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+// Also add getSelectedGenre function that was referenced but missing
+function getSelectedGenre() {
+  const genreSelect = document.getElementById('genre-select');
+  return genreSelect ? genreSelect.value : 'hardboiled';
 }
 
 // Helper function to animate text into the editor
@@ -509,7 +584,7 @@ async function emanateStringToEditor(content, timeout = 30, onComplete = null) {
     console.error('Editor not initialized');
     return;
   }
-
+  
   let index = 0;
   emanationInProgress = true;
   
@@ -549,17 +624,17 @@ function emanateCharacterToEditor(character) {
     console.error('Editor not initialized');
     return;
   }
-
+  
   // Temporarily mark that this update is from AI, not user
   const wasUserTurn = isUserTurn;
   isUserTurn = false;
   
   // Always insert AI content at the end of the document
   editor.chain()
-    .focus('end')  // Focus at the end of the document
-    .insertContent(character)
-    .run();
-    
+  .focus('end')  // Focus at the end of the document
+  .insertContent(character)
+  .run();
+  
   // Restore the original turn state
   isUserTurn = wasUserTurn;
 }
@@ -567,31 +642,43 @@ function emanateCharacterToEditor(character) {
 // Generalized function to set up button UI interaction and click handler
 function setupButtonUI(button, onClick) {
   if (!button) return;
+  
+  console.log('Setting up button UI for:', button.id || button.className);
+  
   // Add the button-out class by default
   button.classList.add('button-out');
-
+  console.log('Added button-out class to:', button.id || button.className);
+  
   // Handle mousedown - switch to button-in state
   button.addEventListener('mousedown', function() {
+    console.log('Mousedown on button:', this.id || this.className, 'disabled:', this.disabled);
     if (!this.disabled) {
       this.classList.remove('button-out');
       this.classList.add('button-in');
+      console.log('Added button-in class to:', this.id || this.className);
+      console.log('Button classes after mousedown:', this.classList.toString());
     }
   });
   
   // Handle mouseup - switch back to button-out state
   button.addEventListener('mouseup', function() {
+    console.log('Mouseup on button:', this.id || this.className, 'disabled:', this.disabled);
     if (!this.disabled) {
       this.classList.remove('button-in');
       this.classList.add('button-out');
+      console.log('Added button-out class to:', this.id || this.className);
+      console.log('Button classes after mouseup:', this.classList.toString());
     }
   });
   
   // Handle mouseleave - ensure button returns to out state
   button.addEventListener('mouseleave', function() {
+    console.log('Mouseleave on button:', this.id || this.className);
     this.classList.remove('button-in');
     this.classList.add('button-out');
+    console.log('Button classes after mouseleave:', this.classList.toString());
   });
-
+  
   // Assign the provided click handler
   if (typeof onClick === 'function') {
     button.addEventListener('click', onClick);
@@ -995,9 +1082,9 @@ function initializeApp() {
   
   // Initialize editor draggability
   makeEditorDraggable();
-
+  
   createCustomDropdowns();
-
+  
   // Initialize style switcher
   initStyleSwitcher();
   
@@ -1006,7 +1093,7 @@ function initializeApp() {
   
   // Set initial editor size and position
   centerEditorOnLoad();
-
+  
   // Set up START button with generalized UI and click handler
   const startBtn = document.getElementById('startBtn');
   if (startBtn) {
@@ -1015,7 +1102,7 @@ function initializeApp() {
   } else {
     console.error('Start button not found');
   }
-
+  
   // Set up SAVE button with generalized UI and click handler
   const saveBtn = document.getElementById('saveBtn');
   if (saveBtn) {
@@ -1027,7 +1114,7 @@ function initializeApp() {
   } else {
     console.error('Save button not found');
   }
-
+  
   // Set up style-switcher button with generalized UI and click handler
   const styleSwitcher = document.getElementById('style-switcher');
   if (styleSwitcher) {
@@ -1046,7 +1133,7 @@ function initializeApp() {
   } else {
     console.error('Style switcher button not found');
   }
-
+  
   // Set up TUI style buttons with generalized UI and click handler
   // All buttons with class 'tui-btn' will get the same UI interaction logic
   const tuiButtons = document.querySelectorAll('.tui-btn');
@@ -1084,17 +1171,23 @@ function initializeApp() {
       // Get the selected genre
       const selectedGenre = this.value;
       
+      // In handleStartButtonClick, after disabling the button:
       if (selectedGenre === 'freewriting') {
-        // In Free Writing mode, user starts first
         console.log("Free Writing mode selected - user starts first");
         startBtn.disabled = false;
         startUserTurn();
       } else {
-        // For other genres, get a new prompt from the LLM
-        updateTurnIndicator(false); // Show AI is working
+        // For all other genres, AI starts with a prompt
+        startBtn.disabled = true;
+        
+        // Force button to return to 'out' state when disabled
+        startBtn.classList.remove('button-in');
+        startBtn.classList.add('button-out');
+        
+        // Get first prompt from LLM
         await getLLMResponse(selectedGenre);
         
-        // After LLM response completes, button is re-enabled in getLLMResponse
+        // After LLM response, it's user's turn
         startBtn.disabled = false;
       }
     });
@@ -1193,7 +1286,7 @@ function createCustomDropdowns() {
 function updateSaveButtonState() {
   const saveBtn = document.getElementById('saveBtn');
   if (!saveBtn || !editor) return;
-
+  
   const content = editor.getHTML();
   const textContent = stripHtml(content);
   const hasContent = textContent.trim().length > 0;
@@ -1214,7 +1307,7 @@ function handleSaveButtonClick() {
     console.error('Editor not initialized');
     return;
   }
-
+  
   // Get the current content from the editor
   const content = editor.getHTML();
   const textContent = stripHtml(content);
@@ -1224,12 +1317,12 @@ function handleSaveButtonClick() {
     console.warn('Save button clicked but editor is empty');
     return;
   }
-
+  
   // Create a filename with timestamp
   const now = new Date();
   const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const filename = `vibewriter-${timestamp}.txt`;
-
+  
   // Create a blob with the text content
   const blob = new Blob([textContent], { type: 'text/plain' });
   
@@ -1270,7 +1363,7 @@ function logToConsole(message, type = 'info') {
 
 // Call this function after the page loads
 // document.addEventListener('DOMContentLoaded', () => {
-// });
+  // });
 
 // Wait for DOM to be fully loaded before initializing
 document.addEventListener('DOMContentLoaded', initializeApp);

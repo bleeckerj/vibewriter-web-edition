@@ -206,22 +206,27 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
     // Use different max_tokens based on whether this is initial or continuation
     const isInitial = !prompt.includes('Continue this story');
     
-    // Determine token limits based on user word count if available, otherwise use AI length setting
+    // Determine token limits based on AI length setting and user word count
     let maxTokens;
-    if (userWordCount > 0) {
+    if (aiLength === 'match' && userWordCount > 0) {
       // Match the user's word count, with a reasonable minimum and maximum
       // Approximate token-to-word ratio is about 1.3 tokens per word
       const tokensFromWords = Math.ceil(userWordCount * 1.3);
       maxTokens = Math.max(10, Math.min(200, tokensFromWords)); // Min 10, max 200 tokens
-      console.log(`Using user word count: ${userWordCount} words → ${maxTokens} tokens`);
+      console.log(`Using user word count matching: ${userWordCount} words → ${maxTokens} tokens`);
     } else {
-      // Fall back to original AI length logic
+      // Use AI length setting
       switch (aiLength) {
         case 'short':
           maxTokens = isInitial ? 30 : 40; // About one sentence
           break;
         case 'long':
           maxTokens = isInitial ? 140 : 180; // ~150 words
+          break;
+        case 'match':
+          // If match is selected but no user word count, fall back to medium
+          maxTokens = isInitial ? 80 : 100; // ~80 words
+          console.log(`Match selected but no user word count, using medium length`);
           break;
         case 'medium':
         default:
