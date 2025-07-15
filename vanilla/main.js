@@ -16,21 +16,25 @@ let userWordCount = 0; // Track word count of user's latest addition
 
 // Genre prompts
 const genrePrompts = {
-  hardboiled: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text, about 60 words, in the style of a hard boiled detective novel. For example, something in the style of Raymond Chandler. The protagonist is a street smart, wise-cracking, private investigator. There is a femme fatale character, typically a beautiful woman, who becomes the protagonist's undoing. The genre includes gritty settings, drinking, cigarette smoking, police, various forms of malfeasence, criminals, hard drinking colleagues, jealous women. The settings have the characteristics of the 1950s in urban settings, although 'futuristic' hard boiled contexts are also viable.`,
+  hardboiled: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text in the style of a hard boiled detective novel. For example, something in the style of Raymond Chandler, Elmore Leonard, Dashiell Hammett. The protagonist is a street smart, wise-cracking, private investigator. There is a femme fatale character, typically a beautiful woman, who becomes the protagonist's undoing. The genre includes gritty settings like back alleys, dingy bars, drinking, seedy journalists, street-smart hookers, pay-by-the-hour motels, single-room occupancy flop houses, cigarette smoking, crooked cops, various forms of malfeasence, criminals, hard drinking colleagues, jealous women. The settings have the characteristics of the 1950s in urban settings, although 'futuristic' hard boiled contexts are also viable, such as like Blade Runner, Altered Carbon, or the works of William Gibson. The writing style should be terse, with a focus on dialogue and action, and a tone that is cynical and world-weary. The story should include elements of mystery, crime, and moral ambiguity, with a plot that involves a complex case that the protagonist must solve while navigating a dangerous underworld.`,
   
-  fantasy: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text, about 60 words, in the style of high fantasy. Think Tolkien, George R.R. Martin, or Terry Pratchett. Include elements such as magic, mythical creatures, ancient prophecies, or epic quests. Set in a medieval-inspired world with its own unique cultures, races, and geography. Focus on world-building and establishing a sense of wonder and adventure.`,
+  fantasy: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text in the style of high fantasy. Think Tolkien, George R.R. Martin, or Terry Pratchett. Include elements such as magic, mythical creatures, ancient prophecies, or epic quests. Set in a medieval-inspired world with its own unique cultures, races, and geography. Focus on world-building and establishing a sense of wonder and adventure.`,
   
-  scifi: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text, about 60 words, in the style of science fiction. Consider authors like Isaac Asimov, Ursula K. Le Guin, or Neal Stephenson. Include elements such as advanced technology, space exploration, artificial intelligence, or dystopian/utopian societies. Focus on the impact of scientific advancement on humanity and society, exploring philosophical and ethical questions through a technological lens.`,
+  scifi: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text in the style of science fiction. Consider authors like Isaac Asimov, Ursula K. Le Guin, or Neal Stephenson. Include elements such as advanced technology, space exploration, artificial intelligence, or dystopian/utopian societies. Focus on the impact of scientific advancement on humanity and society, exploring philosophical and ethical questions through a technological lens.`,
   
-  horror: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text, about 60 words, in the style of horror fiction. Think Stephen King, H.P. Lovecraft, or Shirley Jackson. Create an atmosphere of dread, unease, or impending doom. Include elements such as the supernatural, psychological terror, or unsettling scenarios that play on common fears. Focus on building tension and creating a sense of the unknown.`,
+  cyberpunk: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text in the style of cyberpunk fiction. Think William Gibson, Neal Stephenson, or Philip K. Dick. Includes elements such as neon-drenched cityscape where towering skyscrapers pierce the perpetual rain, the line between human and machine blurs. Corporate megasystems control every aspect of life, while hackers, mercenaries, and augmented outcasts fight in the shadows. The air hums with electric tension and the glow of holographic ads, masking the decay beneath. Write a gritty, immersive narrative capturing the mood of urban alienation, high-tech intrigue, and the desperate struggle for freedom in a dystopian future. Consider a main character who is an expert hacker, steady in their resolve to achieve the ultimate hack and to liberate the masses from their fate under the thumb of the powerful elites who control their lives and their thoughts. Analogize to contemporary disparties where the 1% of the 1% own 99.9% of the power and the wealth.`,
+
+  horror: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text in the style of horror fiction. Think Stephen King, H.P. Lovecraft, or Shirley Jackson. Create an atmosphere of dread, unease, or impending doom. Include elements such as the supernatural, psychological terror, or unsettling scenarios that play on common fears. Focus on building tension and creating a sense of the unknown.`,
   
-  romance: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text, about 60 words, in the style of romance fiction. Consider authors like Jane Austen, Nicholas Sparks, or Nora Roberts. Focus on emotional connection, longing, or the first encounter between potential lovers. Establish characters with chemistry, include elements of attraction, and hint at obstacles or complications that might stand in the way of their relationship.`,
+  romance: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text in the style of romance fiction. Consider authors like Jane Austen, Nicholas Sparks, or Nora Roberts. Focus on emotional connection, longing, or the first encounter between potential lovers. Establish characters with chemistry, include elements of attraction, and hint at obstacles or complications that might stand in the way of their relationship.`,
   
-  western: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text, about 60 words, in the style of a western novel. Think Cormac McCarthy, Louis L'Amour, or Zane Grey. Include elements such as frontier life, cowboys, lawmen, outlaws, or settlers. Set in the American West of the 19th century, with rugged landscapes, small frontier towns, and the conflict between civilization and wilderness. Focus on themes of justice, survival, honor, or redemption.`,
+  western: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a long paragraph of text in the style of a western novel. Think Cormac McCarthy, Louis L'Amour, or Zane Grey. Include elements such as frontier life, cowboys, lawmen, outlaws, or settlers. Set in the American West of the 19th century, with rugged landscapes, small frontier towns, and the conflict between civilization and wilderness. Focus on themes of justice, survival, honor, or redemption.`,
   
   poetry: `Generate a compelling poetic opening for a creative writing exercise. Provide a stanza of about 4-6 lines with evocative imagery, metaphor, and rhythm. The poem should have emotional depth and create a strong sense of atmosphere or feeling. It can be in any poetic style but should be accessible and impactful, serving as inspiration for further creative writing.`,
   
-  solarpunk: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a paragraph of text, about 60 words, in the style of a Solarpunk science fiction adventure novel set in a fictional land where there are AI companions who are like benevolent muses for people who are now able to fully actualize their true selves as creators, craftspeople, traders, explorers, adventurers, community builders, farmers, builders of homes, and technologists. Solarpunk is a genre of science fiction that envisions a future where technology and nature coexist harmoniously, often featuring themes of sustainability, community, and social justice. The story should be set in a world where people have access to advanced AI companions that help them achieve their goals and dreams. The writing style should be engaging, imaginative, and optimistic, reflecting the hopeful and positive nature of the Solarpunk genre.`
+  solarpunk: `Generate a compelling opening phrase or sentence for a creative writing exercise. Provide a paragraph of text in the style of a Solarpunk science fiction adventure novel set in a fictional land where there are AI companions who are like benevolent muses for people who are now able to fully actualize their true selves as creators, craftspeople, traders, explorers, adventurers, community builders, farmers, builders of homes, and technologists. Solarpunk is a genre of science fiction that envisions a future where technology and nature coexist harmoniously, often featuring themes of sustainability, community, and social justice. The story should be set in a world where people have access to advanced AI companions that help them achieve their goals and dreams. The writing style should be engaging, imaginative, and optimistic, reflecting the hopeful and positive nature of the Solarpunk genre.`,
+
+  rap: `Generate a compelling opening for a creative writing exercise. Provide a verse in the style of modern rap lyrics. Use rhyme, rhythm, and wordplay. The lyrics should have a strong voice, clever metaphors, and vivid imagery. Channel the energy and style of artists like Kendrick Lamar, Nicki Minaj, or J. Cole. Avoid explicit content, but keep it authentic and impactful.`
 };
 
 // Simple draggable floating timer
@@ -488,14 +492,14 @@ async function getLLMResponse(genre, existingContent = '') {
       wordCount = 'one sentence';
       break;
       case 'long':
-      wordCount = '~150';
+      wordCount = '~100';
       break;
       case 'medium':
       default:
       wordCount = '~80';
     }
     console.log(`Using AI length: ${aiLength} (${wordCount} words)`);
-    logToConsole(`Using AI length setting: ${aiLength} (${wordCount} words)`, 'info');
+    logToConsole(`Using AI muse length setting: ${aiLength} (${wordCount} words)`, 'info');
   }
   
   const systemPrompt = `You are a creative writer participating in a back-and-forth writing game. ${existingContent ? 'The user has written some text, and you must now continue the story.' : 'You will provide an inspiring prose-based opening to a creative writing story.'} Write in the specified genre style. Your contribution should be about ${wordCount} words. Only provide the text that continues or starts the story. Do not provide commentary, questions, or indicate that you are an AI. Do not use quotation marks around your text unless they are part of the story dialogue. Write compelling, vivid text that builds on what came before.`;
@@ -1196,6 +1200,34 @@ function initializeApp() {
     console.error('Genre select not found');
   }
 }
+
+// Listen for AI length changes and log to console
+document.addEventListener('DOMContentLoaded', () => {
+  const aiLengthSelect = document.getElementById('ai-length-select');
+  if (aiLengthSelect) {
+    aiLengthSelect.addEventListener('change', (e) => {
+      const value = e.target.value;
+      const label = {
+        short: "Short",
+        medium: "Medium",
+        long: "Long",
+        match: "Match User"
+      }[value] || value;
+      const msg = `AI muse length set to: ${label}`;
+      console.log(msg);
+
+      // If you have an in-app console, display there too:
+      const consoleMessages = document.getElementById('console-messages');
+      if (consoleMessages) {
+        const div = document.createElement('div');
+        div.textContent = msg;
+        consoleMessages.appendChild(div);
+        // Optionally scroll to bottom
+        consoleMessages.scrollTop = consoleMessages.scrollHeight;
+      }
+    });
+  }
+});
 
 // Function to create custom select dropdowns
 function createCustomDropdowns() {
