@@ -120,24 +120,27 @@ function initializeEditor() {
           if (isUserTurn && !hasUserStartedTyping) {
             console.log("First keystroke detected");
             
-            // Check if timer controls exist and start timer
-            if (window.timerControls && typeof window.timerControls.isActive === 'function') {
-              // Only start timer if it's not already active
-              if (!window.timerControls.isActive()) {
-                console.log("Starting timer");
-                hasUserStartedTyping = true;
-                window.timerControls.start();
-                
-                // Keep indicator showing brain emoji for user's turn
-                const indicator = document.getElementById('turn-indicator');
-                if (indicator) {
-                  indicator.textContent = "🧠";
+            // Check if the editor content contains any non-whitespace character
+            const plainText = stripHtml(editor.getHTML());
+            if (plainText.replace(/\s/g, '').length > 0) {
+              if (window.timerControls && typeof window.timerControls.isActive === 'function') {
+                // Only start timer if it's not already active
+                if (!window.timerControls.isActive()) {
+                  console.log("Starting timer (user typed non-whitespace)");
+                  hasUserStartedTyping = true;
+                  window.timerControls.start();
+                  
+                  // Keep indicator showing brain emoji for user's turn
+                  const indicator = document.getElementById('turn-indicator');
+                  if (indicator) {
+                    indicator.textContent = "🧠";
+                  }
                 }
+              } else {
+                // Even without timer, mark that typing has started
+                hasUserStartedTyping = true;
+                console.warn("Timer controls not found or not initialized");
               }
-            } else {
-              // Even without timer, mark that typing has started
-              hasUserStartedTyping = true;
-              console.warn("Timer controls not found or not initialized");
             }
           }
         }
@@ -364,12 +367,12 @@ function startUserTurn() {
 // End the user's turn and get LLM response
 async function endUserTurn() {
   console.log("=== End User Turn Called ===");
-  
+
   if (currentTurn !== 'user') {
     console.log("Not user's turn, exiting");
     return;
   }
-  
+
   currentTurn = 'ai';
   isUserTurn = false;
   isEditing = false;
@@ -383,67 +386,51 @@ async function endUserTurn() {
   const contentBeforeUser = contentBeforeUserTurn || '';
   const contentAfterUser = editor.getHTML();
   
-  // Debug logging
-  console.log('=== Word Count Calculation ===');
-  console.log('Before user turn (text):', contentBeforeUser);
-  console.log('After user turn (text):', contentAfterUser);
-  console.log('Length before:', contentBeforeUser.length);
-  console.log('Length after:', contentAfterUser.length);
-  
-  // Calculate words added by finding the difference
+  // Strip HTML and trim whitespace for accurate comparison
+  const plainBefore = stripHtml(contentBeforeUser).trim();
+  const plainAfter = stripHtml(contentAfterUser).trim();
+
   let userAddedText = '';
-  if (contentAfterUser.length > contentBeforeUser.length) {
+  if (plainAfter.length > plainBefore.length) {
     // User added content - find what was added
-    if (contentAfterUser.startsWith(contentBeforeUser)) {
-      // Content was added at the end
-      userAddedText = contentAfterUser.substring(contentBeforeUser.length).trim();
-      console.log('Content added at end:', userAddedText);
-    } else if (contentAfterUser.endsWith(contentBeforeUser)) {
-      // Content was added at the beginning
-      userAddedText = contentAfterUser.substring(0, contentAfterUser.length - contentBeforeUser.length).trim();
-      console.log('Content added at beginning:', userAddedText);
+    if (plainAfter.startsWith(plainBefore)) {
+      userAddedText = plainAfter.substring(plainBefore.length).trim();
+    } else if (plainAfter.endsWith(plainBefore)) {
+      userAddedText = plainAfter.substring(0, plainAfter.length - plainBefore.length).trim();
     } else {
-      // Content was inserted in the middle or text was modified
-      console.log('Content was inserted/modified, using word count difference');
-      const wordsBeforeUser = contentBeforeUser ? countWords(contentBeforeUser) : 0;
-      const wordsAfterUser = contentAfterUser ? countWords(contentAfterUser) : 0;
-      const wordsDifference = wordsAfterUser - wordsBeforeUser;
-      
-      console.log('Words before:', wordsBeforeUser);
-      console.log('Words after:', wordsAfterUser);
-      console.log('Word difference:', wordsDifference);
-      
-      if (wordsDifference > 0) {
-        userWordCount = wordsDifference;
-        logToConsole(`User added approximately ${userWordCount} words (calculated from word count difference)`);
-      } else {
-        userWordCount = 0;
-        logToConsole('User did not add any words');
-      }
-      
-      // Continue with LLM response
-      setTimeout(() => {
-        // Get the current editor content to provide context
-        const currentEditorContent = editor.getHTML();
-        getLLMResponse(getSelectedGenre(), currentEditorContent);
-      }, 500);
-      return;
+      // Content was inserted/modified, fallback to word count difference
+      userAddedText = plainAfter; // fallback: treat all as new
     }
   } else {
-    // User didn't add content or removed content
     userAddedText = '';
-    console.log('No content added or content was removed');
   }
-  
-  userWordCount = userAddedText ? countWords(userAddedText) : 0;
-  
+
+  // Only count words if userAddedText contains non-whitespace
+  userWordCount = userAddedText && userAddedText.replace(/\s/g, '').length > 0
+    ? countWords(userAddedText)
+    : 0;
+
   console.log('Final user word count:', userWordCount);
   console.log('User added text:', userAddedText);
-  
+
   if (userWordCount > 0) {
     logToConsole(`User added ${userWordCount} words: "${userAddedText.substring(0, 100)}${userAddedText.length > 100 ? '...' : ''}"`);
   } else {
     logToConsole('User did not add any words');
+  }
+
+  // If user added no meaningful words, restart timer and notify
+  if (userWordCount === 0) {
+    logToConsole('Please contribute something meaningful before the timer runs out!', 'warning');
+    if (window.timerControls && typeof window.timerControls.reset === 'function') {
+      window.timerControls.reset(); // Only reset, do NOT start
+    }
+    editor.commands.focus('end');
+    currentTurn = 'user';
+    isUserTurn = true;
+    isEditing = true;
+    hasUserStartedTyping = false;
+    return; // Do not proceed to AI turn
   }
   
   // Continue with LLM response after a short delay
