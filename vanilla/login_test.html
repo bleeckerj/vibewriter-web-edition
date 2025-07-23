@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login Test - Vibewriter</title>
+  <meta name="description" content="Login to Vibewriter and start writing with AI." />
+  <link rel="stylesheet" href="style.css" id="style-sheet" />
+  <link rel="stylesheet" href="tailwind-build.css" />
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-indigo-900 to-blue-900 min-h-screen flex flex-col">
+  <header class="w-full py-6 px-4 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
+    <div class="flex items-center space-x-3">
+      <span class="text-[1.1em] sm:text-2xl font-bold text-white tracking-tight">Vibewriter</span>
+    </div>
+    <nav class="space-x-4 text-center">
+      <a href="/about.html" class="sm:text-[1em] text-indigo-200 hover:text-white transition">About</a>
+      <a href="index.html" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Home</a>
+    </nav>
+  </header>
+  <main class="flex-1 flex flex-col justify-center items-center text-center px-4">
+    <div class="bg-white/10 backdrop-blur-md rounded-lg shadow-lg p-8 max-w-md w-full">
+      <h1 class="text-3xl font-extrabold text-white mb-6">Sign in or Create Account</h1>
+      <form id="auth-form" class="flex flex-col gap-4">
+        <input type="email" id="email" placeholder="Email" required class="p-3 rounded" />
+        <input type="password" id="password" placeholder="Password" required class="p-3 rounded" />
+        <div class="flex justify-between">
+          <button type="submit" id="sign-in-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700 transition">Sign In</button>
+          <button type="button" id="sign-up-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700 transition">Create Account</button>
+        </div>
+      </form>
+      <div id="firebase-error" class="text-red-400 text-sm mt-2 hidden"></div>
+      <div id="user-info" class="hidden mt-6">
+        <p class="text-white mb-2">Signed in as <span id="user-email"></span></p>
+        <button id="logout-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded shadow transition">Log Out</button>
+      </div>
+    </div>
+  </main>
+  <footer class="mt-10 w-full py-6 text-center text-indigo-200 text-sm">
+    &copy; 2025 Near Future Laboratory. All rights reserved.
+    <a href='https://nearfuturelaboratory.com/'><img src="/images/site/LaboratoryGuy_01__CIRCLE_80x80.webp" alt="Vibewriter Logo" style="margin: 16px auto; width: 60px;" class="mx-auto w-[60px] mt-4 shadow-lg"></a>
+    <a href="/privacy" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Privacy Policy</a>
+  </footer>
+  <script type="module">
+    import { auth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const signInBtn = document.getElementById('sign-in-btn');
+    const signUpBtn = document.getElementById('sign-up-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const userInfo = document.getElementById('user-info');
+    const userEmail = document.getElementById('user-email');
+    const errorDiv = document.getElementById('firebase-error');
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        // User is signed in
+        userInfo.classList.remove('hidden');
+        userEmail.textContent = user.email;
+        errorDiv.classList.add('hidden');
+        // Redirect to editor.html after short delay
+        setTimeout(() => {
+          window.location.href = 'editor.html';
+        }, 1000);
+      } else {
+        // User is signed out
+        userInfo.classList.add('hidden');
+        userEmail.textContent = '';
+      }
+    });
+
+    signInBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      errorDiv.classList.add('hidden');
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) {
+        errorDiv.textContent = 'Please enter email and password.';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        errorDiv.textContent = err.message || 'Sign in failed.';
+        errorDiv.classList.remove('hidden');
+      }
+    });
+
+    signUpBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      errorDiv.classList.add('hidden');
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) {
+        errorDiv.textContent = 'Please enter email and password.';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        errorDiv.textContent = err.message || 'Account creation failed.';
+        errorDiv.classList.remove('hidden');
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      await signOut(auth);
+    });
+  </script>
+</body>
+</html>

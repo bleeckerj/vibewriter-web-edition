@@ -1,120 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - Vibewriter</title>
-  <meta name="description" content="Login to Vibewriter and start writing with AI." />
-  <link rel="stylesheet" href="style.css" id="style-sheet" />
-  <link rel="stylesheet" href="tailwind-build.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login with FirebaseUI - Vibewriter</title>
+    <meta name="description" content="Login to Vibewriter using FirebaseUI." />
+    <link rel="stylesheet" href="style.css" id="style-sheet" />
+    <link rel="stylesheet" href="tailwind-build.css" />
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/6.0.0/firebaseui.css" />
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-indigo-900 to-blue-900 min-h-screen flex flex-col">
-  <header class="w-full py-6 px-4 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
-    <div class="flex items-center space-x-3">
-      <!-- <img src="/images/vibewriter-preview.png" alt="Vibewriter Logo" class="h-10 w-10 rounded-full shadow-lg"> -->
-      <span class="text-[1.1em] sm:text-2xl font-bold text-white tracking-tight">Vibewriter</span>
-    </div>
-    <nav class="space-x-4 text-center">
-      <a href="/about.html" class="sm:text-[1em] text-indigo-200 hover:text-white transition">About</a>
-      <a href="index.html" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Home</a>
-    </nav>
-  </header>
-  <main class="flex-1 flex flex-col justify-center items-center text-center px-4">
-    <div class="bg-white/10 backdrop-blur-md rounded-lg shadow-lg p-8 max-w-md w-full">
-      <h1 class="text-3xl font-extrabold text-white mb-6">Sign in to Vibewriter</h1>
-      
-      <button id="google-signin" class="w-full flex items-center justify-center bg-white text-gray-900 font-bold py-3 px-4 rounded-lg shadow hover:bg-gray-100 transition mb-4">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="h-6 w-6 mr-2"> Sign in with Google
-      </button>
-      <button id="github-signin" class="w-full flex items-center justify-center bg-gray-900 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-gray-800 transition mb-4">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/github.svg" alt="GitHub" class="h-6 w-6 mr-2"> Sign in with GitHub
-      </button>
-      <button id="email-signin" class="w-full flex items-center justify-center bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-indigo-700 transition mb-4">
-        <svg class="h-6 w-6 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 12H8m8 0l-4-4m4 4l-4 4"></path></svg>
-        Sign in with Email
-      </button>
-      <div id="firebase-error" class="text-red-400 text-sm mt-2 hidden"></div>
-      <div id="user-info" class="hidden mt-6">
-        <p class="text-white mb-2">Signed in as <span id="user-email"></span></p>
-        <button id="logout-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded shadow transition">Log Out</button>
-      </div>
-    </div>
-  </main>
-  <footer class="mt-10 w-full py-6 text-center text-indigo-200 text-sm">
-    &copy; 2025 Near Future Laboratory. All rights reserved.
-    <a href='https://nearfuturelaboratory.com/'><img src="/images/site/LaboratoryGuy_01__CIRCLE_80x80.webp" alt="Vibewriter Logo" style="margin: 16px auto; width: 60px;"class="mx-auto w-[60px] mt-4 shadow-lg"></a>
-      <a href="/privacy" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Privacy Policy</a>
-  </footer>
-  <script type="module">
-    import { auth, onAuthStateChanged, signInWithGoogle, signOutUser, signInWithGitHub, signInWithEmail } from './firebase-auth.js';
-
-    const googleBtn = document.getElementById('google-signin');
-    const githubBtn = document.getElementById('github-signin');
-    const emailBtn = document.getElementById('email-signin');
-    const logoutBtn = document.getElementById('logout-btn');
-    const userInfo = document.getElementById('user-info');
-    const userEmail = document.getElementById('user-email');
-    const errorDiv = document.getElementById('firebase-error');
-
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        // User is signed in
-        googleBtn.style.display = 'none';
-        userInfo.classList.remove('hidden');
-        userEmail.textContent = user.email;
-        // Redirect to editor.html after short delay
-        setTimeout(() => {
-          window.location.href = 'editor.html';
-        }, 1000);
-      } else {
-        // User is signed out
-        googleBtn.style.display = '';
-        userInfo.classList.add('hidden');
-        userEmail.textContent = '';
-      }
-    });
-
-    if (googleBtn) {
-      googleBtn.addEventListener('click', async () => {
-        try {
-          await signInWithGoogle();
-        } catch (err) {
-          errorDiv.textContent = err.message || 'Login failed.';
-          errorDiv.classList.remove('hidden');
-        }
-      });
-    }
-
-    if (githubBtn) {
-      githubBtn.addEventListener('click', async () => {
-        try {
-          await signInWithGitHub();
-        } catch (err) {
-          errorDiv.textContent = err.message || 'GitHub login failed.';
-          errorDiv.classList.remove('hidden');
-        }
-      });
-    }
-
-    if (emailBtn) {
-      emailBtn.addEventListener('click', async () => {
-        const email = prompt('Enter your email:');
-        const password = prompt('Enter your password:');
-        if (!email || !password) return;
-        try {
-          await signInWithEmail(email, password);
-        } catch (err) {
-          errorDiv.textContent = err.message || 'Email login failed.';
-          errorDiv.classList.remove('hidden');
-        }
-      });
-    }
-
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', async () => {
-        await signOutUser();
-      });
-    }
-  </script>
+    <header class="w-full py-6 px-4 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
+        <div class="flex items-center space-x-3">
+            <span class="text-[1.1em] sm:text-2xl font-bold text-white tracking-tight">Vibewriter</span>
+        </div>
+        <nav class="space-x-4 text-center">
+            <a href="/about.html" class="sm:text-[1em] text-indigo-200 hover:text-white transition">About</a>
+            <a href="index.html" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Home</a>
+        </nav>
+    </header>
+    <main class="flex-1 flex flex-col justify-center items-center text-center px-4">
+        <div class="bg-white/10 backdrop-blur-md rounded-lg shadow-lg p-8 max-w-md w-full">
+            <h1 class="text-3xl font-extrabold text-white mb-6">Sign in to Vibewriter</h1>
+            <div id="firebaseui-auth-container"></div>
+            <div id="user-info" class="hidden mt-6">
+                <p class="text-white mb-2">Signed in as <span id="user-email"></span></p>
+                <button id="logout-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded shadow transition">Log Out</button>
+                <a id="start-vibewriting-btn" href="/editor.html" class="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow transition">Start Vibewriting</a>
+            </div>
+        </div>
+    </main>
+    <footer class="mt-10 w-full py-6 text-center text-indigo-200 text-sm">
+        &copy; 2025 Near Future Laboratory. All rights reserved.
+        <a href='https://nearfuturelaboratory.com/'><img src="/images/site/LaboratoryGuy_01__CIRCLE_80x80.webp" alt="Vibewriter Logo" style="margin: 16px auto; width: 60px;" class="mx-auto w-[60px] mt-4 shadow-lg"></a>
+        <a href="/privacy" class="sm:text-[1em] text-indigo-200 hover:text-white transition">Privacy Policy</a>
+    </footer>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
+    <script>
+        // Your Firebase config - replace with your own
+        const firebaseConfig = {
+            apiKey: "AIzaSyCqzPOxVQeA0k7qkO9q5V7t0EY4ad-K5ls",
+            authDomain: "vibewriter-bb628.firebaseapp.com",
+            projectId: "vibewriter-bb628",
+            storageBucket: "vibewriter-bb628.firebasestorage.app",
+            messagingSenderId: "387555975528",
+            appId: "1:387555975528:web:409c2fb787ae29e2bbf6dd"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        
+        const auth = firebase.auth();
+        
+        // Initialize the FirebaseUI Widget using Firebase.
+        const ui = new firebaseui.auth.AuthUI(auth);
+        
+        const uiConfig = {
+            callbacks: {
+                signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+                    // User successfully signed in.
+                    document.getElementById('user-info').classList.remove('hidden');
+                    document.getElementById('user-email').textContent = authResult.user.email;
+                    // Prevent redirect.
+                    return false;
+                },
+                uiShown: function() {
+                    // The widget is rendered.
+                    document.getElementById('firebaseui-auth-container').style.display = 'block';
+                }
+            },
+            signInFlow: 'popup',
+            signInOptions: [
+            firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+            firebase.auth.GithubAuthProvider.PROVIDER_ID,
+            firebase.auth.EmailAuthProvider.PROVIDER_ID,
+            ],
+            tosUrl: '#',
+            privacyPolicyUrl: 'privacy.html'
+        };
+        
+        ui.start('#firebaseui-auth-container', uiConfig);
+        
+        // Logout button
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            auth.signOut().then(() => {
+                document.getElementById('user-info').classList.add('hidden');
+                document.getElementById('user-email').textContent = '';
+            });
+        });
+    </script>
 </body>
 </html>
