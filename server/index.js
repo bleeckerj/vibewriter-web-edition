@@ -542,6 +542,11 @@ app.get('/privacy', (req, res) => {
   res.sendFile(path.join(__dirname, '../vanilla/privacy.html'));
 });
 
+// Terms of service route
+app.get('/terms', (req, res) => {
+  res.sendFile(path.join(__dirname, '../vanilla/terms.html'));
+});
+
 // Fallback route for SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../vanilla/index.html'));
