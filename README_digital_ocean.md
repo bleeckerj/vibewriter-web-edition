@@ -2,6 +2,14 @@
 
 This guide explains how to set up, build, and run the Vibewriter web app on a Digital Ocean server using Node.js, PM2, and nginx.
 
+> **⚠️ IMPORTANT:** The application and PM2 processes are managed by the specific user `vibewriter`.
+> **Do not run these commands as `root`**.
+>
+> If you are logged in as root, switch to the correct user first:
+> ```bash
+> su - vibewriter
+> ```
+
 ---
 
 ## 1. Directory Structure
@@ -118,6 +126,7 @@ sudo systemctl reload nginx
 
 ## 9. Troubleshooting
 
+- **"Command not found" (pm2, node, npm):** You are likely logged in as `root`. Switch to the `vibewriter` user: `su - vibewriter`.
 - If CSS changes don't show up, rebuild with `npm run build:css`.
 - If backend changes don't show up, restart PM2: `pm2 restart vibewriter`.
 - If `scp` hangs, check SSH/firewall/network.

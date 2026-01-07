@@ -100,6 +100,10 @@ The backend uses:
 - CORS for cross-origin requests
 - dotenv for environment variables
 
+### Deployment
+
+The application is currently deployed on DigitalOcean
+
 ## License
 
 NONE
