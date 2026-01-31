@@ -217,6 +217,9 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
     } else {
       // Use AI length setting
       switch (aiLength) {
+        case 'phrase':
+          maxTokens = isInitial ? 12 : 15; // Just a few words (2-5 words)
+          break;
         case 'short':
           maxTokens = isInitial ? 30 : 40; // About one sentence
           break;
