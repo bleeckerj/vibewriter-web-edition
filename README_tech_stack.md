@@ -44,7 +44,7 @@ Vibewriter is a web-based collaborative creative writing tool that pairs human w
 ```json
 {
   "express": "^4.18.2",               // Web framework
-  "openai": "^4.20.1",               // OpenAI API client
+  "openai": "^7.23.0",               // OpenAI API client
   "firebase-admin": "^11.11.0",      // Firebase server SDK
   "cors": "^2.8.5",                  // Cross-origin resource sharing
   "express-rate-limit": "^7.1.5",    // Rate limiting middleware
@@ -111,7 +111,9 @@ module.exports = {
 ### AI Integration
 
 #### OpenAI GPT Integration
-- **Model**: GPT-4.1-nano-2025-04-14 (configurable)
+- **Model**: GPT-6 Luna (configurable via `OPENAI_MODEL`)
+- **API**: Responses API with stateless requests
+- **Reasoning**: Disabled by default for low-latency creative turns (`OPENAI_REASONING_EFFORT=none`)
 - **Dynamic token limits**: Adaptive response length
 - **Temperature control**: Different creativity levels for initial vs. continuation
 - **Genre-specific prompts**: Tailored system prompts for different writing styles
@@ -199,7 +201,8 @@ vibewriter-web-edition/
 ```bash
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4.1-nano-2025-04-14
+OPENAI_MODEL=gpt-6-luna
+OPENAI_REASONING_EFFORT=none
 OPENAI_ADMIN_KEY=your_admin_key (optional)
 
 # Admin Authentication

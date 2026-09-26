@@ -21,7 +21,7 @@ This guide explains how to set up, build, and run the Vibewriter web app on a Di
 ---
 
 ## 2. Prerequisites
-- Node.js (v18+ recommended for best compatibility)
+- Node.js (v22+ required by the current OpenAI Node.js SDK)
 - npm
 - PM2 (`npm install -g pm2`)
 - nginx (for serving static files and reverse proxy)

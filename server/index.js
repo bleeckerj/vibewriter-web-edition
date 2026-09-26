@@ -4,6 +4,8 @@ const { verifyFirebaseToken } = require('./firebase-admin');
 const cors = require('cors');
 const path = require('path');
 const { OpenAI } = require('openai');
+const { generateText, getOpenAIConfig } = require('./openai-client');
+const { estimateTokenCost } = require('./openai-pricing');
 const fs = require('fs');
 const rfs = require('rotating-file-stream');
 const rateLimit = require('express-rate-limit');
@@ -177,6 +179,7 @@ app.use(express.static(path.join(__dirname, '../vanilla')));
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+const openAIConfig = getOpenAIConfig();
 
 // Initialize cache for OpenAI usage data
 let usageCache = {
@@ -203,7 +206,7 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
     console.log('AI length setting:', aiLength);
     console.log('User word count:', userWordCount, 'words');
     
-    // Use different max_tokens based on whether this is initial or continuation
+    // Use different output limits based on whether this is initial or continuation
     const isInitial = !prompt.includes('Continue this story');
     
     // Determine token limits based on AI length setting and user word count
@@ -238,26 +241,32 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
       console.log(`Using AI length setting: ${aiLength} → ${maxTokens} tokens`);
     }
     
-    console.log(`Using max_tokens: ${maxTokens}`);
+    console.log(`Using max_output_tokens: ${maxTokens}`);
     
-    const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4.1-nano-2025-04-14',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: maxTokens,
-      temperature: isInitial ? 0.9 : 0.8, // Slightly less random for continuations
+    const temperature = isInitial ? 0.9 : 0.8;
+    const text = await generateText(openai, {
+      model: openAIConfig.model,
+      reasoningEffort: openAIConfig.reasoningEffort,
+      system,
+      prompt,
+      maxTokens,
+      temperature
     });
     
     console.log('Response received from OpenAI API');
-    res.json({ text: response.choices[0].message.content });
+    res.json({ text });
     
     // Log the conversation
     logConversation(req, {
       metadata: { system, aiLength, userWordCount },
-      conversation: [{ role: 'user', content: prompt }, { role: 'assistant', content: response.choices[0].message.content }],
-      settings: { maxTokens, temperature: isInitial ? 0.9 : 0.8 }
+      conversation: [{ role: 'user', content: prompt }, { role: 'assistant', content: text }],
+      settings: {
+        api: 'responses',
+        model: openAIConfig.model,
+        reasoningEffort: openAIConfig.reasoningEffort,
+        maxTokens,
+        temperature
+      }
     });
   } catch (err) {
     console.error('OpenAI API Error:', err.message);
@@ -288,7 +297,9 @@ app.get('/api/health', (req, res) => {
     version: '0.1.0',
     env: process.env.NODE_ENV || 'development',
     openaiKey: process.env.OPENAI_API_KEY ? 'configured' : 'missing',
-    openaiModel: process.env.OPENAI_MODEL || 'gpt-4.1-nano-2025-04-14 (default)'
+    openaiApi: 'responses',
+    openaiModel: openAIConfig.model,
+    openaiReasoningEffort: openAIConfig.reasoningEffort
   });
 });
 
@@ -588,6 +599,7 @@ async function getLast5DaysUsage() {
     url.searchParams.append('start_time', startTime);
     url.searchParams.append('end_time', endTime);
     url.searchParams.append('bucket_width', '1d'); // Daily buckets
+    url.searchParams.append('group_by', 'model');
     
     if (process.env.OPENAI_PROJECT_ID) {
       // This is actually a project ID, not an API key ID
@@ -633,6 +645,7 @@ async function getLast5DaysUsage() {
             // Extract values using the new structure
             const promptTokens = result.input_tokens || 0;
             const completionTokens = result.output_tokens || 0;
+            const cachedPromptTokens = result.input_cached_tokens || 0;
             const requests = result.num_model_requests || 0;
             const model = result.model || 'unknown';
             
@@ -646,36 +659,17 @@ async function getLast5DaysUsage() {
             results.totalCompletionTokens += completionTokens;
             results.totalRequests += requests;
             
-            // Calculate cost based on model
-            let promptCost = 0;
-            let completionCost = 0;
-            
-            if (model.includes('gpt-4')) {
-              if (model.includes('nano')) {
-                // GPT-4.1 nano pricing
-                promptCost = (promptTokens / 1000000) * 0.1; // $0.100 per 1M tokens
-                completionCost = (completionTokens / 1000000) * 0.4; // $0.400 per 1M tokens
-              } else if (model.includes('mini')) {
-                // NEW: GPT-4.1 mini pricing
-                promptCost = (promptTokens / 1000000) * 0.4; // $0.40 per 1M tokens
-                completionCost = (completionTokens / 1000000) * 1.6; // $1.60 per 1M tokens
-              } else if (model.includes('4.1')) {
-                // Standard GPT-4.1 pricing
-                promptCost = (promptTokens / 1000000) * 2.0; // $2.00 per 1M tokens
-                completionCost = (completionTokens / 1000000) * 8.0; // $8.00 per 1M tokens
-              } else {
-                // Standard GPT-4 pricing (older models)
-                promptCost = (promptTokens / 1000) * 0.03; // $0.03 per 1K tokens
-                completionCost = (completionTokens / 1000) * 0.06; // $0.06 per 1K tokens
-              }
-            } else {
-              // Default to GPT-3.5 pricing
-              promptCost = (promptTokens / 1000) * 0.0015; // $0.0015 per 1K tokens
-              completionCost = (completionTokens / 1000) * 0.002; // $0.002 per 1K tokens
+            // Estimate from published token rates; unknown models are left unpriced.
+            const estimatedCost = estimateTokenCost(
+              model,
+              promptTokens,
+              completionTokens,
+              cachedPromptTokens
+            );
+            if (estimatedCost !== null) {
+              dayCost += estimatedCost;
+              results.totalCost += estimatedCost;
             }
-            
-            dayCost += promptCost + completionCost;
-            results.totalCost += promptCost + completionCost;
             
             // Track by model
             if (model) {
@@ -684,14 +678,17 @@ async function getLast5DaysUsage() {
                   requests: 0,
                   promptTokens: 0,
                   completionTokens: 0,
-                  cost: 0
+                  cost: 0,
+                  costEstimated: estimatedCost !== null
                 };
               }
               
               results.byModel[model].requests += requests;
               results.byModel[model].promptTokens += promptTokens;
               results.byModel[model].completionTokens += completionTokens;
-              results.byModel[model].cost += (promptCost + completionCost);
+              if (estimatedCost !== null) {
+                results.byModel[model].cost = (results.byModel[model].cost || 0) + estimatedCost;
+              }
             }
           });
         }

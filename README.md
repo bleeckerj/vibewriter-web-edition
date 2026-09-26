@@ -21,7 +21,7 @@ A web-based creative writing platform inspired by Ghostwriter's "Vibe Mode." Col
 
 ### Prerequisites
 
-- Node.js (version 14.x or higher)
+- Node.js (version 22.x or higher)
 - npm or yarn
 - OpenAI API key
 
@@ -41,6 +41,8 @@ A web-based creative writing platform inspired by Ghostwriter's "Vibe Mode." Col
 3. Create a `.env` file in the `/server` directory:
    ```
    OPENAI_API_KEY=your_api_key_here
+   OPENAI_MODEL=gpt-6-luna
+   OPENAI_REASONING_EFFORT=none
    PORT=3000
    ```
 
@@ -96,7 +98,7 @@ The frontend uses:
 
 The backend uses:
 - Express.js
-- OpenAI Node.js SDK (v5.x)
+- OpenAI Node.js SDK (v7.x)
 - CORS for cross-origin requests
 - dotenv for environment variables
 
